@@ -1197,6 +1197,33 @@ def test_szlab_photoshotting_schedules_dissolution_without_blocking(monkeypatch)
     }
 
 
+def test_szlab_photoshotting_can_take_photo_without_triggering_dissolution(monkeypatch):
+    device = SzlabMixerPhotoShottingDevice(
+        use_plc_gateway=True,
+        dissolution_service_url="http://inference:8003/",
+    )
+    monkeypatch.setattr(
+        device,
+        "_run_photo_check",
+        lambda **_kwargs: {"success": True, "data": {}},
+    )
+    monkeypatch.setattr(
+        device,
+        "_start_dissolution_detection",
+        lambda _sample_id: pytest.fail("纯拍照动作不应触发溶解检测"),
+    )
+
+    result = device.take_photo(
+        sample_id="sample-1",
+        trigger_dissolution_detection=False,
+    )
+
+    assert result == {
+        "success": True,
+        "data": {"dissolution_detection_triggered": False},
+    }
+
+
 @pytest.mark.parametrize(
     ("solubility", "expected_route"),
     [(True, "density"), (False, "reject")],

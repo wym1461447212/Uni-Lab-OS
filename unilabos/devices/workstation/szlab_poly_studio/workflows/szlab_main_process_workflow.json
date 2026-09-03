@@ -322,7 +322,8 @@
                                                                         "sample_id":  "sample-001",
                                                                         "photo_path":  "",
                                                                         "inspection_result":  "",
-                                                                        "require_material":  false
+                                                                        "require_material":  false,
+                                                                        "trigger_dissolution_detection":  false
                                                                     }
                                                      }
                                       },

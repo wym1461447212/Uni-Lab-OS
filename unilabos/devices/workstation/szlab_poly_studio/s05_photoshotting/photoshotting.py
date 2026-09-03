@@ -419,6 +419,7 @@ class SzlabMixerPhotoShottingDevice:
         photo_path: str = "",
         inspection_result: str = "",
         require_material: bool = False,
+        trigger_dissolution_detection: bool = True,
     ) -> dict[str, Any]:
         """
         Args:
@@ -426,11 +427,14 @@ class SzlabMixerPhotoShottingDevice:
             photo_path[照片路径]: 保留参数；相机照片链接接口接入后由设备侧获取。
             inspection_result[算法结果]: 保留参数；S05 当前按 PLC 拍照结果判断。
             require_material[要求有料]: 兼容旧工作流参数；实机动作始终要求拍照位置有料。
+            trigger_dissolution_detection[触发溶解检测]: 拍照成功后是否异步触发溶解检测。
         """
         del inspection_result, require_material
         result = self._run_photo_check(sample_id=sample_id, photo_path=photo_path)
-        if result.get("success"):
+        if result.get("success") and trigger_dissolution_detection:
             result["data"]["dissolution_detection_triggered"] = self._start_dissolution_detection(sample_id)
+        elif result.get("success"):
+            result["data"]["dissolution_detection_triggered"] = False
         return result
 
     @action(auto_prefix=True, description="执行烧杯姿势拍照并判断溶解")

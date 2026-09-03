@@ -1193,6 +1193,51 @@ def test_szlab_robot_action_workflow_flow_matches_requested_synthesis_route():
     assert actions[-1]["params"] == {"position": 1}
 
 
+def test_szlab_robot_action_workflow_rephotographs_after_density_without_redetecting():
+    workflow = json.loads(
+        Path("szlab_robot_action_workflow.json").read_text(encoding="utf-8")
+    )
+    actions = [item["action"] for item in workflow["rules"][0]["actions"]]
+    node_ids = [action["workflow_node_id"] for action in actions]
+    actions_by_node_id = {
+        action["workflow_node_id"]: action
+        for action in actions
+    }
+
+    assert [action["index"] for action in actions] == list(range(1, 33))
+    assert actions_by_node_id["w06_take_photo_s05"]["method"] == (
+        "take_photo_and_detect_dissolution"
+    )
+    second_photo = actions_by_node_id["w06_take_photo_s05_after_density"]
+    assert second_photo["method"] == "take_photo"
+    assert second_photo["params"]["trigger_dissolution_detection"] is False
+
+    pour_index = node_ids.index("w07_pour_beaker_s08")
+    assert node_ids[pour_index - 4:pour_index + 1] == [
+        "w06_pick_beaker_s09_after_density",
+        "w06_place_beaker_s05_after_density",
+        "w06_take_photo_s05_after_density",
+        "w07_pick_beaker_s05_after_density",
+        "w07_pour_beaker_s08",
+    ]
+
+    task_workspace = json.loads(
+        Path("task-orchestration/szlab_robot_action_workflow.json.task-workspace.json")
+        .read_text(encoding="utf-8")
+    )["workspace"]
+    templates = task_workspace["templates"]
+    decision = next(
+        template for template in templates
+        if "w06_take_photo_s05" in template["node_ids"]
+    )
+    second_photo_task = next(
+        template for template in templates
+        if "w06_take_photo_s05_after_density" in template["node_ids"]
+    )
+    assert second_photo_task["id"] in decision["result_routes"]["density"]
+    assert second_photo_task["result_routes"] == {}
+
+
 def test_ai4c_runtime_device_classes_are_importable():
     if find_spec("rclpy") is None:
         pytest.skip("rclpy 未安装，跳过依赖 ROS2 的 AI4C 设备类导入检查")
