@@ -265,6 +265,18 @@ def test_s08_occupied_station_only_allows_owner_until_pick_succeeds():
         sample_id="sample-b",
         node_id="w05_open_sample_vial_s08",
     )
+    assert _temporary_s08_trigger_satisfied(
+        workspace,
+        instance_id="sample-a-density",
+        sample_id="sample-a",
+        node_id="w06_pick_beaker_s09_after_density",
+    )
+    assert not _temporary_s08_trigger_satisfied(
+        workspace,
+        instance_id="sample-b-density",
+        sample_id="sample-b",
+        node_id="w06_pick_beaker_s09_after_density",
+    )
     assert not _temporary_s08_trigger_satisfied(
         workspace,
         instance_id="sample-b-inbound",
@@ -297,13 +309,13 @@ def test_s08_occupied_station_only_allows_owner_until_pick_succeeds():
     )
 
 
-def test_s09_density_return_reserves_empty_beaker_station_until_place():
+def test_s09_density_transfer_reserves_empty_beaker_station_until_place():
     node_ids = [
         "w03_pick_beaker_s06",
         "w03_place_beaker_s09",
         "w03_add_liquid_s09",
         "w04_pick_beaker_s09",
-        "w06_pick_beaker_s04",
+        "w06_pick_beaker_s05_for_density",
         "w05_place_beaker_s09_for_density",
         "w05_measure_density_s09",
         "w06_pick_beaker_s09_after_density",
@@ -318,11 +330,22 @@ def test_s09_density_return_reserves_empty_beaker_station_until_place():
                 {"node_id": "w03_pick_beaker_s06", "status": "succeeded", "finished_at": 10},
                 {"node_id": "w03_place_beaker_s09", "status": "succeeded", "finished_at": 20},
                 {"node_id": "w04_pick_beaker_s09", "status": "succeeded", "finished_at": 30},
-                {"node_id": "w06_pick_beaker_s04", "status": "succeeded", "finished_at": 40},
             ]},
         }],
     }
 
+    assert _temporary_s09_trigger_satisfied(
+        workspace,
+        instance_id="sample-b",
+        node_id="w03_pick_beaker_s06",
+    )
+    workspace["task_instances"][0]["execution_state"]["records"].append(
+        {
+            "node_id": "w06_pick_beaker_s05_for_density",
+            "status": "succeeded",
+            "finished_at": 40,
+        }
+    )
     assert not _temporary_s09_trigger_satisfied(
         workspace,
         instance_id="sample-b",

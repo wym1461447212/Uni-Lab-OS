@@ -246,7 +246,7 @@
           "action": {
             "index": 16,
             "node": "S05 取烧杯",
-            "workflow_node_id": "w07_pick_beaker_s05",
+            "workflow_node_id": "w06_pick_beaker_s05_for_density",
             "device_id": "szlab_mixer_robot",
             "method": "submit_pick_from_s05",
             "params": {
