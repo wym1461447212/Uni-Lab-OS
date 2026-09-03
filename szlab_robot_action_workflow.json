@@ -22,15 +22,15 @@
         "S04 放烧杯",
         "S04 磁搅",
         "S04 取烧杯",
+        "S05 放烧杯",
+        "S05 拍照",
+        "S05 取烧杯",
         "S09 放烧杯",
         "S09 测密度",
         "S03 取样品瓶",
         "S08 放样品瓶",
         "S08 开盖",
         "S09 取烧杯",
-        "S05 放烧杯",
-        "S05 拍照",
-        "S05 取烧杯",
         "S08 倒料",
         "S11 放烧杯",
         "S08 关盖",
@@ -216,6 +216,45 @@
         {
           "action": {
             "index": 14,
+            "node": "S05 放烧杯",
+            "workflow_node_id": "w06_place_beaker_s05",
+            "device_id": "szlab_mixer_robot",
+            "method": "submit_place_to_s05",
+            "params": {
+              "sample_id": "sample-001"
+            }
+          }
+        },
+        {
+          "action": {
+            "index": 15,
+            "node": "S05 拍照",
+            "workflow_node_id": "w06_take_photo_s05",
+            "device_id": "szlab_s05_photoshotting",
+            "method": "take_photo_and_detect_dissolution",
+            "params": {
+              "sample_id": "sample-001",
+              "photo_path": "",
+              "inspection_result": "",
+              "require_material": false
+            }
+          }
+        },
+        {
+          "action": {
+            "index": 16,
+            "node": "S05 取烧杯",
+            "workflow_node_id": "w07_pick_beaker_s05",
+            "device_id": "szlab_mixer_robot",
+            "method": "submit_pick_from_s05",
+            "params": {
+              "sample_id": "sample-001"
+            }
+          }
+        },
+        {
+          "action": {
+            "index": 17,
             "node": "S09 放烧杯",
             "workflow_node_id": "w05_place_beaker_s09_for_density",
             "device_id": "szlab_mixer_robot",
@@ -228,7 +267,7 @@
         },
         {
           "action": {
-            "index": 15,
+            "index": 18,
             "node": "S09 测密度",
             "workflow_node_id": "w05_measure_density_s09",
             "device_id": "szlab_mixer_pipetting_station",
@@ -242,7 +281,7 @@
         },
         {
           "action": {
-            "index": 16,
+            "index": 19,
             "node": "S03 取样品瓶",
             "workflow_node_id": "w05_pick_sample_vial_s03",
             "device_id": "szlab_mixer_robot",
@@ -255,7 +294,7 @@
         },
         {
           "action": {
-            "index": 17,
+            "index": 20,
             "node": "S08 放样品瓶",
             "workflow_node_id": "w05_place_sample_vial_s08",
             "device_id": "szlab_mixer_robot",
@@ -268,7 +307,7 @@
         },
         {
           "action": {
-            "index": 18,
+            "index": 21,
             "node": "S08 开盖",
             "workflow_node_id": "w05_open_sample_vial_s08",
             "device_id": "szlab_s08_cap_station",
@@ -284,7 +323,7 @@
         },
         {
           "action": {
-            "index": 19,
+            "index": 22,
             "node": "S09 取烧杯",
             "workflow_node_id": "w06_pick_beaker_s09_after_density",
             "device_id": "szlab_mixer_robot",
@@ -292,45 +331,6 @@
             "params": {
               "product_type": 4,
               "position": 1
-            }
-          }
-        },
-        {
-          "action": {
-            "index": 20,
-            "node": "S05 放烧杯",
-            "workflow_node_id": "w06_place_beaker_s05",
-            "device_id": "szlab_mixer_robot",
-            "method": "submit_place_to_s05",
-            "params": {
-              "sample_id": "sample-001"
-            }
-          }
-        },
-        {
-          "action": {
-            "index": 21,
-            "node": "S05 拍照",
-            "workflow_node_id": "w06_take_photo_s05",
-            "device_id": "szlab_s05_photoshotting",
-            "method": "take_photo_and_detect_dissolution",
-            "params": {
-              "sample_id": "sample-001",
-              "photo_path": "",
-              "inspection_result": "",
-              "require_material": false
-            }
-          }
-        },
-        {
-          "action": {
-            "index": 22,
-            "node": "S05 取烧杯",
-            "workflow_node_id": "w07_pick_beaker_s05",
-            "device_id": "szlab_mixer_robot",
-            "method": "submit_pick_from_s05",
-            "params": {
-              "sample_id": "sample-001"
             }
           }
         },
