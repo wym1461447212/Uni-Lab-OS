@@ -123,6 +123,7 @@ import {
   formatTaskActionTimingTitle,
   isTaskWaitingStatus,
   orderSelectedTemplateIds,
+  parseTaskResultRoutesDraft,
   renameTaskTemplate,
   resolveTaskTemplateNameDraft,
   resolveTemplateNodes,
@@ -297,6 +298,7 @@ type TaskTemplate = {
   gates: string[];
   inputTriggers: TriggerCondition[];
   outputTriggers: TriggerCondition[];
+  resultRoutes: Record<string, string[]>;
 };
 type CsvVariable = {
   name: string;
@@ -440,6 +442,7 @@ function taskWorkspaceFromApi(response: ApiWorkspaceResponse): TaskWorkspaceStat
       gates: [],
       inputTriggers: template.input_triggers.map(fromApiTrigger),
       outputTriggers: template.output_triggers.map(fromApiTrigger),
+      resultRoutes: template.result_routes || {},
     })),
     taskInstances: response.workspace.task_instances.map((instance) => ({
       id: instance.id,
@@ -889,6 +892,8 @@ function App() {
   const [taskWaitingReasons, setTaskWaitingReasons] = useState<Record<string, ApiWaitingReason>>({});
   const [isTaskDetailModalOpen, setIsTaskDetailModalOpen] = useState(false);
   const [taskTemplateNameDraft, setTaskTemplateNameDraft] = useState('');
+  const [taskResultRoutesDraft, setTaskResultRoutesDraft] = useState('{}');
+  const [taskResultRoutesError, setTaskResultRoutesError] = useState('');
   const [isTaskTemplateCreating, setIsTaskTemplateCreating] = useState(false);
   const [taskMutationInFlightCount, setTaskMutationInFlightCount] = useState(0);
   const [taskServiceError, setTaskServiceError] = useState('');
@@ -1302,7 +1307,9 @@ function App() {
   );
   useEffect(() => {
     setTaskTemplateNameDraft(selectedTaskTemplate?.name || '');
-  }, [selectedTaskTemplate?.id, selectedTaskTemplate?.name]);
+    setTaskResultRoutesDraft(JSON.stringify(selectedTaskTemplate?.resultRoutes || {}, null, 2));
+    setTaskResultRoutesError('');
+  }, [selectedTaskTemplate?.id, selectedTaskTemplate?.name, selectedTaskTemplate?.resultRoutes]);
   const sampleProcessRows = useMemo(
     () => buildSampleProcessRows(taskInstances, taskTemplates),
     [taskInstances, taskTemplates],
@@ -2111,6 +2118,7 @@ function App() {
         resources: [],
         input_triggers: [],
         output_triggers: [],
+        result_routes: {},
       });
       return response;
     });
@@ -2176,6 +2184,37 @@ function App() {
       { name },
     ));
   }, [mutateTaskWorkspace, taskTemplateNameDraft, taskWorkspacePath]);
+
+  const commitSelectedTaskResultRoutes = useCallback(() => {
+    const templateId = selectedTaskTemplateIdRef.current;
+    const template = taskTemplatesRef.current.find((item) => item.id === templateId);
+    if (!template) return;
+    let resultRoutes: Record<string, string[]>;
+    try {
+      resultRoutes = parseTaskResultRoutesDraft(
+        taskResultRoutesDraft,
+        taskTemplatesRef.current.map((item) => item.id),
+        template.id,
+      );
+    } catch (error) {
+      setTaskResultRoutesError(error instanceof Error ? error.message : '路线配置无效');
+      return;
+    }
+    setTaskResultRoutesError('');
+    setTaskResultRoutesDraft(JSON.stringify(resultRoutes, null, 2));
+    if (JSON.stringify(resultRoutes) === JSON.stringify(template.resultRoutes)) return;
+    const nextTemplates = taskTemplatesRef.current.map((item) => (
+      item.id === template.id ? { ...item, resultRoutes } : item
+    ));
+    taskTemplatesRef.current = nextTemplates;
+    setTaskTemplates(nextTemplates);
+    void mutateTaskWorkspace((version) => taskApiRef.current.updateTemplate(
+      taskWorkspacePath,
+      version,
+      template.id,
+      { result_routes: resultRoutes },
+    ));
+  }, [mutateTaskWorkspace, taskResultRoutesDraft, taskWorkspacePath]);
 
   const addTemplateToSchedule = useCallback((templateId: string) => {
     if (!taskTemplatesRef.current.some((item) => item.id === templateId)) return;
@@ -2417,6 +2456,7 @@ function App() {
         resources: template.resources,
         input_triggers: template.inputTriggers.map(taskTriggerForExport),
         output_triggers: template.outputTriggers.map(taskTriggerForExport),
+        result_routes: template.resultRoutes,
       })),
     });
     showCanvasToast(isSingle ? '已下载 Task 模板' : `已下载 ${templates.length} 个 Task 模板`);
@@ -4529,6 +4569,27 @@ function App() {
                         </div>
                       );
                     })}
+                  </div>
+                  <div className="task-detail-section task-result-routes">
+                    <strong>结果路线</strong>
+                    <p>用动作结果中的 route 选择后续模板；未选中的路线任务会自动跳过。</p>
+                    <textarea
+                      aria-label="结果路线 JSON"
+                      value={taskResultRoutesDraft}
+                      onChange={(event) => {
+                        setTaskResultRoutesDraft(event.target.value);
+                        setTaskResultRoutesError('');
+                      }}
+                      spellCheck={false}
+                    />
+                    {taskResultRoutesError && <small className="task-result-routes-error">{taskResultRoutesError}</small>}
+                    <small>
+                      可用目标：{taskTemplates
+                        .filter((template) => template.id !== selectedTaskTemplate.id)
+                        .map((template) => `${template.name} (${template.id})`)
+                        .join('；') || '暂无其他模板'}
+                    </small>
+                    <button onClick={commitSelectedTaskResultRoutes} type="button">保存路线</button>
                   </div>
                 </section>
               </div>

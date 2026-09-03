@@ -51,6 +51,7 @@ const {
   createWorkspaceEpochController,
   isTaskWaitingStatus,
   normalizeTriggerConditions,
+  parseTaskResultRoutesDraft,
   renameTaskTemplate,
   resolveTaskTemplateNameDraft,
   resolveTemplateNodes,
@@ -982,25 +983,37 @@ assert.deepEqual(
   { workflow_path: '/tmp/demo.json', expected_version: 3, template_ids: ['second', 'first'] },
   '待排模板请求只能包含工作区、版本和模板 ID',
 );
+await taskApi.updateTemplate('/tmp/demo.json', 4, 'decision', {
+  result_routes: { density: ['density'], reject: ['return'] },
+});
+assert.deepEqual(
+  JSON.parse(taskApiRequests[2].init.body),
+  {
+    workflow_path: '/tmp/demo.json',
+    expected_version: 4,
+    result_routes: { density: ['density'], reject: ['return'] },
+  },
+  '结果路线必须通过模板 PATCH 原样持久化',
+);
 await taskApi.deleteTemplates('/tmp/demo.json', 4, ['second', 'first']);
 assert.equal(
-  taskApiRequests[2].url,
+  taskApiRequests[3].url,
   'http://scheduler.test/api/v1/templates:delete',
   '批量删除模板必须使用原子批量 API',
 );
 assert.deepEqual(
-  JSON.parse(taskApiRequests[2].init.body),
+  JSON.parse(taskApiRequests[3].init.body),
   { workflow_path: '/tmp/demo.json', expected_version: 4, template_ids: ['second', 'first'] },
   '批量删除请求只能包含工作区、版本和模板 ID',
 );
 await taskApi.resetWorkspace('/tmp/demo.json');
 assert.equal(
-  taskApiRequests[3].url,
+  taskApiRequests[4].url,
   'http://scheduler.test/api/v1/workspaces/reset',
   '重置当前 Task 工作区必须调用专用安全 API',
 );
 assert.deepEqual(
-  JSON.parse(taskApiRequests[3].init.body),
+  JSON.parse(taskApiRequests[4].init.body),
   { workflow_path: '/tmp/demo.json' },
   '重置请求只能携带当前 workflow 工作区路径',
 );
@@ -1512,6 +1525,28 @@ assert.equal(
   ).phase,
   'completed',
   '只有非空实例集合全部 completed 才能显示已完成',
+);
+const routedCompletedWorkspace = {
+  ...completedWorkspace,
+  workspace: {
+    ...completedWorkspace.workspace,
+    task_instances: [
+      ...completedWorkspace.workspace.task_instances,
+      {
+        ...completedWorkspace.workspace.task_instances[0],
+        id: 'task-skipped',
+        status: 'cancelled',
+      },
+    ],
+  },
+};
+assert.equal(
+  createTaskExecutionStatus(
+    { active: 0, in_flight: 0, claimed: 0, completed: 0, failed: 0 },
+    routedCompletedWorkspace,
+  ).phase,
+  'completed',
+  '已完成选中路线且其他路线已取消时，整体执行应显示完成',
 );
 assert.equal(
   createTaskExecutionStatus(
@@ -2313,6 +2348,7 @@ assert.deepEqual(
     gates: [],
     inputTriggers: [],
     outputTriggers: [],
+    resultRoutes: {},
   },
   '未连接 PLC 时不应推断 Task 条件',
 );
@@ -2345,6 +2381,7 @@ assert.deepEqual(
     gates: [],
     inputTriggers: [],
     outputTriggers: [],
+    resultRoutes: {},
   },
   'Task 模板不再维护输入/输出触发条件，统一在 OPC 模拟配置',
 );
@@ -2384,6 +2421,32 @@ assert.equal(
   ),
   '同一样品的前序 Task 未完成',
   '等待信息只能检查同 sample 的真实前序状态',
+);
+assert.equal(
+  taskLocalWaitingReason(
+    { id: 'selected', sample: 'sample-a', templateId: 'template-a', order: 2, status: 'waiting' },
+    [
+      { id: 'decision', sample: 'sample-a', templateId: 'template-a', order: 0, status: 'completed' },
+      { id: 'skipped', sample: 'sample-a', templateId: 'template-a', order: 1, status: 'cancelled' },
+    ],
+    [{ id: 'template-a' }],
+  ),
+  '',
+  '路线跳过的前序 Task 应视为终态，不能阻塞选中路线',
+);
+assert.deepEqual(
+  parseTaskResultRoutesDraft(
+    '{"density":["measure","return"],"reject":["return-direct"]}',
+    ['decision', 'measure', 'return', 'return-direct'],
+    'decision',
+  ),
+  { density: ['measure', 'return'], reject: ['return-direct'] },
+  '结果路线编辑器应保留 route 到后续模板 ID 的映射',
+);
+assert.throws(
+  () => parseTaskResultRoutesDraft('{"density":["missing"]}', ['decision'], 'decision'),
+  /不存在的模板 missing/,
+  '结果路线编辑器应在保存前拒绝不存在的模板',
 );
 assert.deepEqual(
   renameTaskTemplate(taskTemplatesFixture, 'liquid', 'S09 精准配液').map((template) => template.name),
@@ -2515,6 +2578,8 @@ assert.match(
   /value=\{taskTemplateNameDraft\}[\s\S]*?onChange=\{\(event\) => setTaskTemplateNameDraft\(event\.target\.value\)\}[\s\S]*?onBlur=\{commitSelectedTaskTemplateName\}[\s\S]*?event\.key === 'Enter'/,
   '模板名称应本地编辑，并仅在 Enter 或失焦时保存',
 );
+assert.match(mainSource, /aria-label="结果路线 JSON"/, '模板详情应允许编辑结果路线');
+assert.match(mainSource, /\{ result_routes: resultRoutes \}/, '结果路线应保存到模板 API');
 assert.match(mainSource, /createTaskOrchestrationClient\(\)/, 'Task 工作区应使用独立 REST API 客户端');
 assert.match(mainSource, /\/api\/task-opc\/connect/, 'Task 页面连接 OPC 必须调用 workflow_ui 后端');
 assert.doesNotMatch(mainSource, /new\s+OPC|opcua|OPCUAClient/, 'Task 前端不得直接创建 OPC 客户端');

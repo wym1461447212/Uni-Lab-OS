@@ -22,6 +22,7 @@ export type TaskTemplateModel = {
   gates: string[];
   inputTriggers?: TriggerCondition[];
   outputTriggers?: TriggerCondition[];
+  resultRoutes?: Record<string, string[]>;
 };
 
 export type TaskNodeDescriptor = {
@@ -383,9 +384,12 @@ export function sampleProcessRowStatus(
   blocks: Array<Pick<SampleProcessBlock, 'state'>>,
 ): SampleProcessRowStatus {
   if (blocks.some((block) => block.state === 'running')) return 'current';
-  if (blocks.length > 0 && blocks.every((block) => block.state === 'completed')) return 'completed';
   if (blocks.some((block) => block.state === 'failed')) return 'failed';
-  if (blocks.some((block) => block.state === 'cancelled')) return 'cancelled';
+  if (blocks.length > 0 && blocks.every((block) => (
+    block.state === 'completed' || block.state === 'cancelled'
+  ))) {
+    return blocks.some((block) => block.state === 'completed') ? 'completed' : 'cancelled';
+  }
   return 'queued';
 }
 
@@ -628,7 +632,41 @@ export function createTaskTemplateDraft(
     gates: [],
     inputTriggers: [],
     outputTriggers: [],
+    resultRoutes: {},
   };
+}
+
+export function parseTaskResultRoutesDraft(
+  draft: string,
+  templateIds: string[],
+  sourceTemplateId: string,
+): Record<string, string[]> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(draft || '{}');
+  } catch {
+    throw new Error('路线配置必须是有效的 JSON');
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('路线配置必须是 JSON 对象');
+  }
+  const knownTemplateIds = new Set(templateIds);
+  const routes: Record<string, string[]> = {};
+  for (const [route, rawTargets] of Object.entries(parsed)) {
+    if (!route.trim()) throw new Error('路线名称不能为空');
+    if (!Array.isArray(rawTargets)) throw new Error(`路线 ${route} 的目标必须是模板 ID 数组`);
+    const targets = rawTargets.map((target) => {
+      if (typeof target !== 'string' || !target.trim()) {
+        throw new Error(`路线 ${route} 包含无效的模板 ID`);
+      }
+      if (target === sourceTemplateId) throw new Error(`路线 ${route} 不能指向当前模板`);
+      if (!knownTemplateIds.has(target)) throw new Error(`路线 ${route} 引用了不存在的模板 ${target}`);
+      return target;
+    });
+    if (new Set(targets).size !== targets.length) throw new Error(`路线 ${route} 包含重复的模板 ID`);
+    routes[route] = targets;
+  }
+  return routes;
 }
 
 export function taskTemplateDeviceIds(
@@ -653,7 +691,11 @@ export function taskLocalWaitingReason(
   }
   const previousDone = instances
     .filter((instance) => instance.sample === task.sample && instance.order < task.order)
-    .every((instance) => instance.status === 'done' || instance.status === 'completed');
+    .every((instance) => (
+      instance.status === 'done'
+      || instance.status === 'completed'
+      || instance.status === 'cancelled'
+    ));
   return previousDone ? '' : '同一样品的前序 Task 未完成';
 }
 

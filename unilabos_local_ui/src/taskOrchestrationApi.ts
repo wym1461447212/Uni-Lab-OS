@@ -17,6 +17,7 @@ export type ApiTemplate = {
   resources: string[];
   input_triggers: ApiTrigger[];
   output_triggers: ApiTrigger[];
+  result_routes: Record<string, string[]>;
 };
 
 export type ApiNodeExecutionRecord = {
@@ -150,7 +151,9 @@ export function createTaskExecutionStatus(
   };
   const taskInstances = workspace?.workspace.task_instances || [];
   const allCompleted = taskInstances.length > 0
-    && taskInstances.every((instance) => instance.status === 'completed');
+    && taskInstances.every((instance) => (
+      instance.status === 'completed' || instance.status === 'cancelled'
+    ));
   const nextPhase = phase || (
     normalized.failed > 0 || Boolean(workspace?.workspace.pause_reason)
       ? 'failed'
@@ -339,7 +342,7 @@ export function createTaskOrchestrationClient(options: ClientOptions = {}) {
       workflowPath: string,
       expectedVersion: number,
       templateId: string,
-      patch: Pick<Partial<ApiTemplate>, 'name' | 'input_triggers' | 'output_triggers'>,
+      patch: Pick<Partial<ApiTemplate>, 'name' | 'input_triggers' | 'output_triggers' | 'result_routes'>,
     ) => request(`/templates/${encodeURIComponent(templateId)}`, {
       method: 'PATCH',
       body: JSON.stringify({

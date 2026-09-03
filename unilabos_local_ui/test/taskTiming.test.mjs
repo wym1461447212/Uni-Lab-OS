@@ -228,6 +228,16 @@ assert.equal(
   'completed',
 );
 assert.equal(
+  sampleProcessRowStatus([{ state: 'completed' }, { state: 'cancelled' }]),
+  'completed',
+  '完成选中路线且跳过另一条路线时，样品整体应显示完成',
+);
+assert.equal(
+  sampleProcessRowStatus([{ state: 'cancelled' }, { state: 'cancelled' }]),
+  'cancelled',
+  '全部任务取消时，样品整体仍应显示取消',
+);
+assert.equal(
   sampleProcessRowStatus([{ state: 'completed' }, { state: 'pending' }]),
   'queued',
 );
