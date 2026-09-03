@@ -97,6 +97,11 @@ workspace 中不包含提交者的执行日志、OPC 会话或资源占用状态
 - input/output trigger 是可选的用户流程级条件。store 读取旧 sidecar 时只会丢弃已废弃
   的单数 `Template.trigger`；契约内合法的 `input_triggers`/`output_triggers` 会继续
   保留，升级时不会自动删除，确认不再需要后可在模板编辑区手动清除。
+- 模板可通过 `result_routes` 将末节点动作返回的 `data.route` 映射为后续模板列表。
+  所有候选模板必须与决策模板一起生成且排在其后；命中路线后，仅取消同一样品未命中
+  的候选 Task，命中 Task 已保存的 Action 参数保持不变。
+- 路线选择与 Action 成功终态在同一事务内写入，重复上报不会重复生成事件或取消任务。
+  Action 失败会立即暂停新任务派发，已在途动作仍按原有流程收尾并上报。
 - OPC profile 根据已排模板所含 workflow 节点及其 Action `opc_variables` 生成。模板
   条件可以为空，不是生成 profile 或派发 Action 的前置要求。
 

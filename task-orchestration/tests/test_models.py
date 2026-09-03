@@ -60,6 +60,63 @@ def test_template_accepts_empty_triggers_and_preserves_legacy_resources():
     assert template.input_triggers == []
     assert template.output_triggers == []
     assert template.resources == ["legacy-robot"]
+    assert template.result_routes == {}
+
+
+def test_template_accepts_result_routes_to_follow_up_templates():
+    template = Template(
+        id="decision",
+        name="Dissolution decision",
+        node_ids=["decision-node"],
+        result_routes={
+            "density": ["density-transfer", "density-measure"],
+            "reject": ["reject-return"],
+        },
+    )
+
+    assert template.result_routes["density"] == [
+        "density-transfer",
+        "density-measure",
+    ]
+
+
+@pytest.mark.parametrize(
+    "result_routes",
+    [
+        {"": ["density"]},
+        {"density": [""]},
+        {"density": ["measure", "measure"]},
+    ],
+)
+def test_template_rejects_invalid_result_routes(result_routes):
+    with pytest.raises(ValidationError):
+        Template(
+            id="decision",
+            name="Dissolution decision",
+            result_routes=result_routes,
+        )
+
+
+@pytest.mark.parametrize(
+    "result_routes",
+    [
+        {"density": ["missing"]},
+        {"density": ["decision"]},
+    ],
+)
+def test_workspace_rejects_invalid_result_route_references(result_routes):
+    with pytest.raises(ValidationError):
+        Workspace(
+            workflow_path="demo.json",
+            templates=[
+                Template(
+                    id="decision",
+                    name="Dissolution decision",
+                    node_ids=["decision-node"],
+                    result_routes=result_routes,
+                )
+            ],
+        )
 
 
 def test_action_resource_compatibility_fields_accept_ignored_contents():

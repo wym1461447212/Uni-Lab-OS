@@ -116,6 +116,6 @@ class FifoResourcePolicy:
             for other in all_instances
             if other.sample_id == instance.sample_id
             and other.order < instance.order
-            and other.status != "completed"
+            and other.status not in {"completed", "cancelled"}
         )
         return pending_orders[0] if pending_orders else None

@@ -53,6 +53,34 @@ def test_waits_for_earlier_sample_task_before_starting_later_order():
     assert reason.message == "等待样品 sample-a 的 order 1 完成"
 
 
+def test_cancelled_route_predecessor_does_not_block_selected_route():
+    policy = FifoResourcePolicy()
+    templates = [
+        _template("density", []),
+        _template("reject", []),
+    ]
+    instances = [
+        _instance(
+            "sample-a-density",
+            "density",
+            "sample-a",
+            1,
+            status="cancelled",
+        ),
+        _instance("sample-a-reject", "reject", "sample-a", 2),
+    ]
+
+    result = policy.select(
+        templates,
+        instances,
+        available_resources=set(),
+        condition_satisfied_instance_ids={"sample-a-reject"},
+    )
+
+    assert result.startable_instance_ids == ["sample-a-reject"]
+    assert result.waiting_reasons == {}
+
+
 def test_static_template_resources_do_not_block_multiple_samples_from_starting():
     policy = FifoResourcePolicy()
     templates = [_template("first", ["robot"]), _template("second", ["robot"])]

@@ -2360,6 +2360,111 @@ def test_template_update_rejects_empty_or_unregistered_conditions(tmp_path, monk
     assert missing.json()["detail"]["code"] == "unregistered_plc_variable"
 
 
+def test_result_route_configuration_requires_complete_future_candidates(tmp_path):
+    client = _client_with_workflow(tmp_path)
+    for version, template_id in enumerate(("density", "reject")):
+        created = client.post(
+            "/templates",
+            json={
+                "workflow_path": "demo.json",
+                "expected_version": version,
+                "template": _template(
+                    template_id,
+                    input_triggers=[],
+                    output_triggers=[],
+                ),
+            },
+        )
+        assert created.status_code == 200
+    decision = client.post(
+        "/templates",
+        json={
+            "workflow_path": "demo.json",
+            "expected_version": 2,
+            "template": {
+                **_template(
+                    "decision",
+                    input_triggers=[],
+                    output_triggers=[],
+                ),
+                "result_routes": {
+                    "density": ["density"],
+                    "reject": ["reject"],
+                },
+            },
+        },
+    )
+    assert decision.status_code == 200
+
+    invalid_update = client.patch(
+        "/templates/decision",
+        json={
+            "workflow_path": "demo.json",
+            "expected_version": 3,
+            "result_routes": {"": ["density"]},
+        },
+    )
+    assert invalid_update.status_code == 422
+    updated = client.patch(
+        "/templates/decision",
+        json={
+            "workflow_path": "demo.json",
+            "expected_version": 3,
+            "result_routes": {
+                "density": ["density"],
+                "reject": ["reject"],
+            },
+        },
+    )
+    assert updated.status_code == 200
+
+    referenced_delete = client.delete(
+        "/templates/density",
+        params={"workflow_path": "demo.json", "expected_version": 4},
+    )
+    assert referenced_delete.status_code == 409
+    assert referenced_delete.json()["detail"]["code"] == "result_route_target_in_use"
+
+    missing_candidate = client.post(
+        "/instances:generate",
+        json={
+            "workflow_path": "demo.json",
+            "expected_version": 4,
+            "template_ids": ["decision", "density"],
+            "sample_ids": ["sample-a"],
+        },
+    )
+    assert missing_candidate.status_code == 409
+    assert missing_candidate.json()["detail"]["code"] == "result_route_target_not_selected"
+
+    wrong_order = client.post(
+        "/instances:generate",
+        json={
+            "workflow_path": "demo.json",
+            "expected_version": 4,
+            "template_ids": ["density", "decision", "reject"],
+            "sample_ids": ["sample-a"],
+        },
+    )
+    assert wrong_order.status_code == 409
+    assert wrong_order.json()["detail"]["code"] == "result_route_target_not_future"
+
+    generated = client.post(
+        "/instances:generate",
+        json={
+            "workflow_path": "demo.json",
+            "expected_version": 4,
+            "template_ids": ["decision", "density", "reject"],
+            "sample_ids": ["sample-a"],
+        },
+    )
+    assert generated.status_code == 200
+    assert [
+        item["template_id"]
+        for item in generated.json()["workspace"]["task_instances"]
+    ] == ["decision", "density", "reject"]
+
+
 def test_plc_registration_resolves_english_aliases_to_canonical_csv_names(tmp_path, monkeypatch):
     """中文 CSV 节点名是 Task 持久化和快照判定的唯一键。"""
     monkeypatch.setenv("TASK_ORCHESTRATION_GATEWAY_TOKEN", "gateway-secret")
@@ -2587,6 +2692,217 @@ def _client_with_running_action_tasks(tmp_path) -> TestClient:
     )
     assert saved.status_code == 200
     return client
+
+
+def _client_with_routed_action_tasks(tmp_path) -> TestClient:
+    client = _client_with_workflow(tmp_path)
+    route_templates = {
+        "density": ["density-transfer", "density-measure", "density-finish"],
+        "reject": ["reject-return"],
+    }
+    template_ids = [
+        "decision",
+        "density-transfer",
+        "density-measure",
+        "density-finish",
+        "reject-return",
+        "common-finish",
+    ]
+    workspace = {
+        "workflow_path": "demo.json",
+        "templates": [
+            {
+                **_template(template_id, input_triggers=[], output_triggers=[]),
+                **(
+                    {"result_routes": route_templates}
+                    if template_id == "decision"
+                    else {}
+                ),
+            }
+            for template_id in template_ids
+        ],
+        "task_instances": [
+            {
+                "id": f"sample-a-{template_id}",
+                "template_id": template_id,
+                "status": "running" if template_id == "decision" else "waiting",
+                "sample_id": "sample-a",
+                "order": order,
+                **({"started_at": 1} if template_id == "decision" else {}),
+                "payload": {
+                    "node_parameters": {
+                        f"{template_id}-node": {"position": f"1-{order + 1}"}
+                    }
+                },
+            }
+            for order, template_id in enumerate(template_ids)
+        ],
+    }
+    saved = client.put(
+        "/workspaces",
+        json={"expected_version": 0, "workspace": workspace},
+    )
+    assert saved.status_code == 200
+    claimed = client.post(
+        "/actions:claim",
+        json=_action_request(
+            1,
+            "sample-a-decision",
+            "decision-node",
+            "exec-decision",
+        ),
+    )
+    assert claimed.status_code == 200
+    return client
+
+
+@pytest.mark.parametrize(
+    ("route", "selected_templates", "cancelled_templates", "first_started"),
+    [
+        (
+            "density",
+            {"density-transfer", "density-measure", "density-finish"},
+            {"reject-return"},
+            "density-transfer",
+        ),
+        (
+            "reject",
+            {"reject-return"},
+            {"density-transfer", "density-measure", "density-finish"},
+            "reject-return",
+        ),
+    ],
+)
+def test_action_result_selects_follow_up_route_idempotently(
+    tmp_path,
+    route,
+    selected_templates,
+    cancelled_templates,
+    first_started,
+):
+    client = _client_with_routed_action_tasks(tmp_path)
+    request = _action_request(
+        2,
+        "sample-a-decision",
+        "decision-node",
+        "exec-decision",
+        result={
+            "success": True,
+            "data": {"route": route, "dissolved": route == "density"},
+        },
+        release_resources=[],
+    )
+
+    succeeded = client.post("/actions:succeed", json=request)
+
+    assert succeeded.status_code == 200
+    assert succeeded.json()["version"] == 3
+    workspace = succeeded.json()["workspace"]
+    by_template = {
+        item["template_id"]: item
+        for item in workspace["task_instances"]
+    }
+    assert by_template["decision"]["status"] == "completed"
+    assert {
+        template_id
+        for template_id in selected_templates
+        if by_template[template_id]["status"] == "waiting"
+    } == selected_templates
+    assert {
+        template_id
+        for template_id in cancelled_templates
+        if by_template[template_id]["status"] == "cancelled"
+    } == cancelled_templates
+    assert by_template["common-finish"]["status"] == "waiting"
+    assert by_template[first_started]["payload"]["node_parameters"] == {
+        f"{first_started}-node": {
+            "position": (
+                "1-2" if first_started == "density-transfer" else "1-5"
+            )
+        }
+    }
+    route_events = [
+        event
+        for event in workspace["events"]
+        if event["kind"] == "result_route_selected"
+    ]
+    assert len(route_events) == 1
+    assert route_events[0]["payload"]["route"] == route
+    assert set(route_events[0]["payload"]["selected_template_ids"]) == selected_templates
+    assert set(route_events[0]["payload"]["cancelled_template_ids"]) == cancelled_templates
+
+    replay = client.post("/actions:succeed", json=request)
+
+    assert replay.status_code == 200
+    assert replay.json()["version"] == 3
+    assert sum(
+        event["kind"] == "result_route_selected"
+        for event in replay.json()["workspace"]["events"]
+    ) == 1
+
+    advanced = client.post(
+        "/schedule:advance",
+        json={"workflow_path": "demo.json", "expected_version": 3},
+    )
+
+    assert advanced.status_code == 200
+    advanced_workspace = advanced.json()["workspace"]
+    advanced_by_template = {
+        item["template_id"]: item
+        for item in advanced_workspace["task_instances"]
+    }
+    assert advanced_by_template[first_started]["status"] == "running"
+    assert not (
+        cancelled_templates
+        & {
+            entry["template_id"]
+            for entry in advanced_workspace["schedule_entries"]
+        }
+    )
+
+
+@pytest.mark.parametrize(
+    ("result", "expected_code"),
+    [
+        ({"success": True, "data": {}}, "action_result_route_missing"),
+        (
+            {"success": True, "data": {"route": "manual"}},
+            "action_result_route_unknown",
+        ),
+    ],
+)
+def test_routed_action_rejects_missing_or_unknown_route(
+    tmp_path,
+    result,
+    expected_code,
+):
+    client = _client_with_routed_action_tasks(tmp_path)
+
+    response = client.post(
+        "/actions:succeed",
+        json=_action_request(
+            2,
+            "sample-a-decision",
+            "decision-node",
+            "exec-decision",
+            result=result,
+            release_resources=[],
+        ),
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == expected_code
+    current = client.get(
+        "/workspaces", params={"workflow_path": "demo.json"}
+    ).json()
+    assert current["version"] == 2
+    decision = next(
+        item
+        for item in current["workspace"]["task_instances"]
+        if item["template_id"] == "decision"
+    )
+    assert decision["status"] == "running"
+    assert decision["execution_state"]["active_execution_id"] == "exec-decision"
 
 
 @pytest.mark.parametrize("replay_kind", ["claim", "succeed", "fail"])

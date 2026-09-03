@@ -18,6 +18,20 @@ POLICY_RESOURCE_PREFIX = "resource:"
 POLICY_WORKSTATION_PREFIX = "workstation:"
 
 
+def _validate_result_routes(
+    routes: dict[str, list[str]],
+) -> dict[str, list[str]]:
+    """路线名与候选模板 ID 必须稳定、非空且无重复。"""
+    for route, template_ids in routes.items():
+        if not route.strip():
+            raise ValueError("result route names must not be blank")
+        if any(not template_id.strip() for template_id in template_ids):
+            raise ValueError("result route template ids must not be blank")
+        if len(template_ids) != len(set(template_ids)):
+            raise ValueError("result route template ids must be unique")
+    return routes
+
+
 class StrictModel(BaseModel):
     """拒绝契约之外字段的持久化与写入 DTO 基类。"""
 
@@ -63,6 +77,20 @@ class Template(StrictModel):
     resources: list[str] = Field(default_factory=list)
     input_triggers: list[Trigger] = Field(default_factory=list)
     output_triggers: list[Trigger] = Field(default_factory=list)
+    result_routes: dict[str, list[str]] = Field(default_factory=dict)
+
+    @field_validator("result_routes")
+    @classmethod
+    def validate_result_routes(
+        cls, routes: dict[str, list[str]]
+    ) -> dict[str, list[str]]:
+        return _validate_result_routes(routes)
+
+    @model_validator(mode="after")
+    def validate_result_route_source(self) -> Template:
+        if self.result_routes and not self.node_ids:
+            raise ValueError("result routes require at least one action node")
+        return self
 
 
 class NodeExecutionRecord(StrictModel):
@@ -318,6 +346,7 @@ class WorkspaceEvent(StrictModel):
         "templates_deleted",
         "scheduled_templates_updated", "instances_cleared",
         "instances_progress_reset", "instance_parameters_updated",
+        "result_route_selected",
     ]
     id: str = Field(default_factory=lambda: uuid4().hex)
     timestamp: int = Field(default=0, ge=0)
@@ -355,6 +384,16 @@ class Workspace(StrictModel):
         if any(instance.template_id not in template_id_set for instance in self.task_instances):
             raise ValueError("task instances must reference an existing template")
         template_by_id = {template.id: template for template in self.templates}
+        for template in self.templates:
+            route_targets = {
+                target
+                for targets in template.result_routes.values()
+                for target in targets
+            }
+            if template.id in route_targets:
+                raise ValueError("result routes must not reference their own template")
+            if not route_targets.issubset(template_id_set):
+                raise ValueError("result routes must reference existing templates")
         for instance in self.task_instances:
             template = template_by_id[instance.template_id]
             if instance.execution_state.cursor > len(template.node_ids):
@@ -548,6 +587,14 @@ class TemplateUpdateRequest(StrictModel):
     name: str | None = None
     input_triggers: list[Trigger] | None = None
     output_triggers: list[Trigger] | None = None
+    result_routes: dict[str, list[str]] | None = None
+
+    @field_validator("result_routes")
+    @classmethod
+    def validate_result_routes(
+        cls, routes: dict[str, list[str]] | None
+    ) -> dict[str, list[str]] | None:
+        return None if routes is None else _validate_result_routes(routes)
 
 
 class TemplatesDeleteRequest(StrictModel):

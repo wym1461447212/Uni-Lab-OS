@@ -132,6 +132,7 @@ class WorkspaceService:
         def operation(workspace: Workspace) -> Workspace:
             if any(item.id == template.id for item in workspace.templates):
                 raise WorkspaceServiceError("template_exists", "template already exists")
+            self._validate_template_result_routes(workspace, template)
             item = self._canonicalize_template_triggers(workspace, template)
             self._validate_template_conditions(workspace, item)
             item = item.model_copy(
@@ -155,6 +156,7 @@ class WorkspaceService:
         name: str | None = None,
         input_triggers: list[Trigger] | None = None,
         output_triggers: list[Trigger] | None = None,
+        result_routes: dict[str, list[str]] | None = None,
     ):
         def operation(workspace: Workspace) -> Workspace:
             template = self._template(workspace, template_id)
@@ -171,8 +173,11 @@ class WorkspaceService:
                 updates["output_triggers"] = self._canonicalize_triggers(
                     workspace, output_triggers, "output"
                 )
+            if result_routes is not None:
+                updates["result_routes"] = result_routes
             updates["resources"] = []
-            replacement = template.model_copy(update=updates)
+            replacement = template.validated_copy(update=updates)
+            self._validate_template_result_routes(workspace, replacement)
             return workspace.model_copy(
                 update={
                     "templates": [
@@ -243,6 +248,7 @@ class WorkspaceService:
     def delete_template(self, workflow_path: str, expected_version: int, template_id: str):
         def operation(workspace: Workspace) -> Workspace:
             self._template(workspace, template_id)
+            self._validate_route_target_deletion(workspace, {template_id})
             deleted_instance_ids = [
                 item.id
                 for item in workspace.task_instances
@@ -297,6 +303,9 @@ class WorkspaceService:
             for template_id in ordered_template_ids:
                 self._template(workspace, template_id)
             deleted_template_ids = set(ordered_template_ids)
+            self._validate_route_target_deletion(
+                workspace, deleted_template_ids
+            )
             deleted_instance_ids = [
                 item.id
                 for item in workspace.task_instances
@@ -438,6 +447,31 @@ class WorkspaceService:
                             "unknown_action_node",
                             f"action nodes are not in template {template.id}: {sorted(unknown_nodes)}",
                         )
+            selected_template_ids = set(template_ids)
+            template_order = {
+                template_id: index
+                for index, template_id in enumerate(template_ids)
+            }
+            for template in templates:
+                route_targets = self._result_route_targets(template)
+                missing_targets = route_targets - selected_template_ids
+                if missing_targets:
+                    raise WorkspaceServiceError(
+                        "result_route_target_not_selected",
+                        "result route targets must be generated together: "
+                        f"{sorted(missing_targets)}",
+                    )
+                non_future_targets = {
+                    target
+                    for target in route_targets
+                    if template_order[target] <= template_order[template.id]
+                }
+                if non_future_targets:
+                    raise WorkspaceServiceError(
+                        "result_route_target_not_future",
+                        "result route targets must follow their decision template: "
+                        f"{sorted(non_future_targets)}",
+                    )
             generated: list[TaskInstance] = []
             batch_anchor = self._clock()
             interval_ms = round(sample_start_interval_seconds * 1_000)
@@ -964,11 +998,21 @@ class WorkspaceService:
                         timestamp=transition_time,
                     )
                 )
+            updated_instances = self._replace_instance(
+                workspace, updated_instance
+            )
+            if template.result_routes and node_id == template.node_ids[-1]:
+                updated_instances, route_event = self._apply_result_route(
+                    source_instance=updated_instance,
+                    template=template,
+                    result=result,
+                    instances=updated_instances,
+                    timestamp=transition_time,
+                )
+                events.append(route_event)
             return workspace.validated_copy(
                 update={
-                    "task_instances": self._replace_instance(
-                        workspace, updated_instance
-                    ),
+                    "task_instances": updated_instances,
                     "dynamic_resource_leases": [],
                     "events": events,
                 }
@@ -1048,19 +1092,14 @@ class WorkspaceService:
                 timestamp=transition_time,
                 detail={"error": error},
             )
-            others_still_running = any(
-                item.status == "running" and item.id != instance_id
-                for item in workspace.task_instances
-            )
             workspace_updates: dict[str, Any] = {
                 "task_instances": self._replace_instance(
                     workspace, updated_instance
                 ),
                 "dynamic_resource_leases": [],
+                "scheduler_paused": True,
+                "pause_reason": pause_reason,
             }
-            if not others_still_running:
-                workspace_updates["scheduler_paused"] = True
-                workspace_updates["pause_reason"] = pause_reason
             return workspace.validated_copy(update=workspace_updates)
 
         return self._mutate_idempotent(
@@ -1263,6 +1302,140 @@ class WorkspaceService:
         self._validate_triggers(workspace, template.input_triggers, "input")
         self._validate_triggers(workspace, template.output_triggers, "output")
 
+    @staticmethod
+    def _result_route_targets(template: Template) -> set[str]:
+        return {
+            target
+            for targets in template.result_routes.values()
+            for target in targets
+        }
+
+    def _validate_template_result_routes(
+        self, workspace: Workspace, template: Template
+    ) -> None:
+        """模板路线只能指向当前工作区中的其他模板。"""
+        targets = self._result_route_targets(template)
+        if template.id in targets:
+            raise WorkspaceServiceError(
+                "result_route_self_reference",
+                "result routes must not reference their own template",
+            )
+        unknown_targets = targets - {item.id for item in workspace.templates}
+        if unknown_targets:
+            raise WorkspaceServiceError(
+                "result_route_target_not_found",
+                f"result route templates were not found: {sorted(unknown_targets)}",
+            )
+
+    @staticmethod
+    def _validate_route_target_deletion(
+        workspace: Workspace, deleted_template_ids: set[str]
+    ) -> None:
+        references = sorted(
+            (template.id, route, target)
+            for template in workspace.templates
+            if template.id not in deleted_template_ids
+            for route, targets in template.result_routes.items()
+            for target in targets
+            if target in deleted_template_ids
+        )
+        if references:
+            raise WorkspaceServiceError(
+                "result_route_target_in_use",
+                f"result route targets are still referenced: {references}",
+            )
+
+    @staticmethod
+    def _apply_result_route(
+        *,
+        source_instance: TaskInstance,
+        template: Template,
+        result: Any,
+        instances: list[TaskInstance],
+        timestamp: int,
+    ) -> tuple[list[TaskInstance], WorkspaceEvent]:
+        """按动作返回路线取消同一样品未命中的后续候选 Task。"""
+        data = result.get("data") if isinstance(result, dict) else None
+        route_value = data.get("route") if isinstance(data, dict) else None
+        if not isinstance(route_value, str) or not route_value.strip():
+            raise WorkspaceServiceError(
+                "action_result_route_missing",
+                "routed action result must contain a non-empty data.route",
+            )
+        route = route_value.strip()
+        if route not in template.result_routes:
+            raise WorkspaceServiceError(
+                "action_result_route_unknown",
+                f"action result route is not configured: {route}",
+            )
+
+        selected_templates = set(template.result_routes[route])
+        all_route_templates = {
+            target
+            for targets in template.result_routes.values()
+            for target in targets
+        }
+        future_instances = [
+            item
+            for item in instances
+            if item.sample_id == source_instance.sample_id
+            and item.order > source_instance.order
+        ]
+        available_templates = {item.template_id for item in future_instances}
+        missing_selected = selected_templates - available_templates
+        if missing_selected:
+            raise WorkspaceServiceError(
+                "action_result_route_target_missing",
+                "selected route has no future task instances: "
+                f"{sorted(missing_selected)}",
+            )
+
+        cancelled_template_ids = all_route_templates - selected_templates
+        cancelled_instance_ids: list[str] = []
+        updated_instances: list[TaskInstance] = []
+        for item in instances:
+            is_route_candidate = (
+                item.sample_id == source_instance.sample_id
+                and item.order > source_instance.order
+                and item.template_id in all_route_templates
+            )
+            if not is_route_candidate:
+                updated_instances.append(item)
+                continue
+            if item.status not in {"waiting", "pending", "cancelled"}:
+                raise WorkspaceServiceError(
+                    "action_result_route_target_active",
+                    f"result route target is already active: {item.id}",
+                )
+            if item.template_id in selected_templates:
+                if item.status == "cancelled":
+                    raise WorkspaceServiceError(
+                        "action_result_route_target_cancelled",
+                        f"selected result route target is cancelled: {item.id}",
+                    )
+                updated_instances.append(item)
+                continue
+            if item.status != "cancelled":
+                cancelled_instance_ids.append(item.id)
+                item = item.validated_copy(update={"status": "cancelled"})
+            updated_instances.append(item)
+
+        return updated_instances, WorkspaceEvent(
+            kind="result_route_selected",
+            instance_id=source_instance.id,
+            template_id=source_instance.template_id,
+            timestamp=timestamp,
+            idempotency_key=(
+                f"instance/{source_instance.id}/result-route/{route}"
+            ),
+            payload={
+                "route": route,
+                "selected_template_ids": template.result_routes[route],
+                "cancelled_template_ids": sorted(cancelled_template_ids),
+                "cancelled_instance_ids": cancelled_instance_ids,
+            },
+        )
+
     def _canonicalize_template_triggers(
         self, workspace: Workspace, template: Template
     ) -> Template:
@@ -1381,7 +1554,11 @@ class WorkspaceService:
         sample_available_at: dict[str, int] = {}
         anchor = self._clock()
         instances = sorted(
-            workspace.task_instances,
+            (
+                item
+                for item in workspace.task_instances
+                if item.status != "cancelled"
+            ),
             key=lambda item: (item.order, item.sample_id, item.id),
         )
         fixed_entries: dict[str, TaskScheduleEntry] = {}
