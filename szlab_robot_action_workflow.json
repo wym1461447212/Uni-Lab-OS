@@ -26,6 +26,8 @@
         "S05 拍照",
         "S05 取烧杯",
         "S09 放烧杯",
+        "S05 取烧杯（未溶解）",
+        "S11 放烧杯（未溶解）",
         "S09 测密度",
         "S03 取样品瓶",
         "S08 放样品瓶",
@@ -268,6 +270,31 @@
         {
           "action": {
             "index": 18,
+            "node": "S05 取烧杯（未溶解）",
+            "workflow_node_id": "w06_pick_beaker_s05_for_reject",
+            "device_id": "szlab_mixer_robot",
+            "method": "submit_pick_from_s05",
+            "params": {
+              "sample_id": "sample-001"
+            }
+          }
+        },
+        {
+          "action": {
+            "index": 19,
+            "node": "S11 放烧杯（未溶解）",
+            "workflow_node_id": "w06_place_beaker_s11_for_reject",
+            "device_id": "szlab_mixer_robot",
+            "method": "submit_place_to_s11",
+            "params": {
+              "product_type": 1,
+              "position": "1-1"
+            }
+          }
+        },
+        {
+          "action": {
+            "index": 20,
             "node": "S09 测密度",
             "workflow_node_id": "w05_measure_density_s09",
             "device_id": "szlab_mixer_pipetting_station",
@@ -281,7 +308,7 @@
         },
         {
           "action": {
-            "index": 19,
+            "index": 21,
             "node": "S03 取样品瓶",
             "workflow_node_id": "w05_pick_sample_vial_s03",
             "device_id": "szlab_mixer_robot",
@@ -294,7 +321,7 @@
         },
         {
           "action": {
-            "index": 20,
+            "index": 22,
             "node": "S08 放样品瓶",
             "workflow_node_id": "w05_place_sample_vial_s08",
             "device_id": "szlab_mixer_robot",
@@ -307,7 +334,7 @@
         },
         {
           "action": {
-            "index": 21,
+            "index": 23,
             "node": "S08 开盖",
             "workflow_node_id": "w05_open_sample_vial_s08",
             "device_id": "szlab_s08_cap_station",
@@ -323,7 +350,7 @@
         },
         {
           "action": {
-            "index": 22,
+            "index": 24,
             "node": "S09 取烧杯",
             "workflow_node_id": "w06_pick_beaker_s09_after_density",
             "device_id": "szlab_mixer_robot",
@@ -336,7 +363,7 @@
         },
         {
           "action": {
-            "index": 23,
+            "index": 25,
             "node": "S08 倒料",
             "workflow_node_id": "w07_pour_beaker_s08",
             "device_id": "szlab_mixer_robot",
@@ -348,7 +375,7 @@
         },
         {
           "action": {
-            "index": 24,
+            "index": 26,
             "node": "S11 放烧杯",
             "workflow_node_id": "w07_place_beaker_s11",
             "device_id": "szlab_mixer_robot",
@@ -361,7 +388,7 @@
         },
         {
           "action": {
-            "index": 25,
+            "index": 27,
             "node": "S08 关盖",
             "workflow_node_id": "w07_close_sample_vial_s08",
             "device_id": "szlab_s08_cap_station",
@@ -377,7 +404,7 @@
         },
         {
           "action": {
-            "index": 26,
+            "index": 28,
             "node": "S08 取样品瓶",
             "workflow_node_id": "w07_pick_sample_vial_s08",
             "device_id": "szlab_mixer_robot",
@@ -390,7 +417,7 @@
         },
         {
           "action": {
-            "index": 27,
+            "index": 29,
             "node": "S11 放样品瓶",
             "workflow_node_id": "w07_place_sample_vial_s11",
             "device_id": "szlab_mixer_robot",
