@@ -1486,6 +1486,43 @@
   flex-direction: column;
 }
 
+.scheduler-bench__route-modal {
+  width: min(680px, 100%);
+}
+
+.scheduler-bench__route-body {
+  display: grid;
+  gap: 8px;
+  padding: 18px 20px;
+}
+
+.scheduler-bench__route-body label {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.scheduler-bench__route-body textarea {
+  min-height: 180px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+  padding: 10px 12px;
+}
+
+.scheduler-bench__route-body small {
+  white-space: normal;
+}
+
+.scheduler-bench__route-error {
+  margin: 0;
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .scheduler-bench__parameter-body { overflow: auto; padding: 16px 20px; }
 
 .scheduler-bench__parameter-group {

@@ -18,6 +18,16 @@ assert.match(
   /const resetTaskQueueProgress = useCallback[\s\S]*?hasActiveServerExecution[\s\S]*?resetInstancesProgress/,
   '存在活动动作时必须阻止重置，并使用独立原子接口',
 );
+assert.match(
+  benchSource,
+  /onClick=\{\(\) => openResultRoutesEditor\(template\)\}/,
+  '当前 Task 模板列表应能打开结果路线编辑器',
+);
+assert.match(
+  benchSource,
+  /parseTaskResultRoutesDraft[\s\S]*?aria-label="Task 模板结果路线"[\s\S]*?保存路线/,
+  '当前 Task 页面应校验并展示模板结果路线编辑器',
+);
 
 const transpiled = ts.transpileModule(apiSource, {
   compilerOptions: {

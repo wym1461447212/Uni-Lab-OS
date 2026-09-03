@@ -2185,6 +2185,26 @@ function App() {
     ));
   }, [mutateTaskWorkspace, taskTemplateNameDraft, taskWorkspacePath]);
 
+  const persistTaskTemplateResultRoutes = useCallback((
+    templateId: string,
+    resultRoutes: Record<string, string[]>,
+  ) => {
+    const template = taskTemplatesRef.current.find((item) => item.id === templateId);
+    if (!template) return;
+    if (JSON.stringify(resultRoutes) === JSON.stringify(template.resultRoutes)) return;
+    const nextTemplates = taskTemplatesRef.current.map((item) => (
+      item.id === template.id ? { ...item, resultRoutes } : item
+    ));
+    taskTemplatesRef.current = nextTemplates;
+    setTaskTemplates(nextTemplates);
+    void mutateTaskWorkspace((version) => taskApiRef.current.updateTemplate(
+      taskWorkspacePath,
+      version,
+      template.id,
+      { result_routes: resultRoutes },
+    ));
+  }, [mutateTaskWorkspace, taskWorkspacePath]);
+
   const commitSelectedTaskResultRoutes = useCallback(() => {
     const templateId = selectedTaskTemplateIdRef.current;
     const template = taskTemplatesRef.current.find((item) => item.id === templateId);
@@ -2202,19 +2222,8 @@ function App() {
     }
     setTaskResultRoutesError('');
     setTaskResultRoutesDraft(JSON.stringify(resultRoutes, null, 2));
-    if (JSON.stringify(resultRoutes) === JSON.stringify(template.resultRoutes)) return;
-    const nextTemplates = taskTemplatesRef.current.map((item) => (
-      item.id === template.id ? { ...item, resultRoutes } : item
-    ));
-    taskTemplatesRef.current = nextTemplates;
-    setTaskTemplates(nextTemplates);
-    void mutateTaskWorkspace((version) => taskApiRef.current.updateTemplate(
-      taskWorkspacePath,
-      version,
-      template.id,
-      { result_routes: resultRoutes },
-    ));
-  }, [mutateTaskWorkspace, taskResultRoutesDraft, taskWorkspacePath]);
+    persistTaskTemplateResultRoutes(template.id, resultRoutes);
+  }, [persistTaskTemplateResultRoutes, taskResultRoutesDraft]);
 
   const addTemplateToSchedule = useCallback((templateId: string) => {
     if (!taskTemplatesRef.current.some((item) => item.id === templateId)) return;
@@ -4027,6 +4036,7 @@ function App() {
           onDeleteTemplate={(templateId) => deleteTaskTemplates([templateId], 'single')}
           onDownloadSelectedTemplates={() => downloadTaskTemplates(scheduledTemplateIds)}
           onDownloadTemplate={(templateId) => downloadTaskTemplates([templateId])}
+          onUpdateTemplateResultRoutes={persistTaskTemplateResultRoutes}
           clearTemplatesDisabled={
             !taskTemplates.length
             || isTaskWorkspaceLoading

@@ -34,13 +34,19 @@ import {
   compactTaskProgressLabel,
   formatElapsedDurationMs,
   formatTaskActionTimingTitle,
+  parseTaskResultRoutesDraft,
   resolveTemplateNodes,
   sampleProcessRowStatus,
   taskActionProgressMinWidth,
 } from './taskOrchestration';
 import type { SampleProcessRowStatus, TaskActionExecutionRecord } from './taskOrchestration';
 
-type Template = { id: string; name: string; nodeIds: string[] };
+type Template = {
+  id: string;
+  name: string;
+  nodeIds: string[];
+  resultRoutes?: Record<string, string[]>;
+};
 type Task = {
   id: string;
   sample: string;
@@ -179,6 +185,10 @@ type Props = {
   templateActionsDisabled: boolean;
   onDownloadTemplate: (templateId: string) => void;
   onDeleteTemplate: (templateId: string) => void;
+  onUpdateTemplateResultRoutes: (
+    templateId: string,
+    resultRoutes: Record<string, string[]>,
+  ) => void;
   onDownloadSelectedTemplates: () => void;
   onDeleteSelectedTemplates: () => void;
   onToggleRun: () => void;
@@ -329,6 +339,9 @@ export function TaskSchedulerHeaderActions(props: HeaderActionsProps) {
 
 export function TaskSchedulerBench(props: Props) {
   const [editingTask, setEditingTask] = React.useState<Task | null>(null);
+  const [editingRouteTemplateId, setEditingRouteTemplateId] = React.useState<string | null>(null);
+  const [resultRoutesDraft, setResultRoutesDraft] = React.useState('{}');
+  const [resultRoutesError, setResultRoutesError] = React.useState('');
   const [parameterDraft, setParameterDraft] = React.useState<Record<string, Record<string, unknown>>>({});
   const [s09TipStatus, setS09TipStatus] = React.useState<S09TipStatus | null>(null);
   const [logFilter, setLogFilter] = React.useState<TaskLogCategory>('all');
@@ -381,6 +394,7 @@ export function TaskSchedulerBench(props: Props) {
   const errorStateCounts = countTaskErrorStates(props.logLines);
   const logCategoryCounts = countTaskLogCategories(props.logLines);
   const editingTemplate = props.templates.find((template) => template.id === editingTask?.templateId);
+  const editingRouteTemplate = props.templates.find((template) => template.id === editingRouteTemplateId);
   const editingNodes: ResolvedActionNode[] = editingTemplate
     ? resolveTemplateNodes(editingTemplate.nodeIds, props.actionNodes)
       .filter((entry): entry is { templateNodeId: string; node: ActionNode } => Boolean(entry.node))
@@ -469,6 +483,27 @@ export function TaskSchedulerBench(props: Props) {
     ));
   };
 
+  const openResultRoutesEditor = (template: Template) => {
+    setEditingRouteTemplateId(template.id);
+    setResultRoutesDraft(JSON.stringify(template.resultRoutes || {}, null, 2));
+    setResultRoutesError('');
+  };
+
+  const saveResultRoutes = () => {
+    if (!editingRouteTemplate) return;
+    try {
+      const resultRoutes = parseTaskResultRoutesDraft(
+        resultRoutesDraft,
+        props.templates.map((template) => template.id),
+        editingRouteTemplate.id,
+      );
+      props.onUpdateTemplateResultRoutes(editingRouteTemplate.id, resultRoutes);
+      setEditingRouteTemplateId(null);
+    } catch (error) {
+      setResultRoutesError(error instanceof Error ? error.message : '路线配置无效');
+    }
+  };
+
   const updateParameter = (nodeId: string, parameter: string, value: unknown) => {
     setParameterDraft((current) => ({
       ...current,
@@ -548,10 +583,16 @@ export function TaskSchedulerBench(props: Props) {
               return (
                 <div className="scheduler-bench__template" key={template.id}>
                   <label className="scheduler-bench__template-choice">
-                    <input checked={checked} onChange={() => props.onToggleTemplate(template.id)} type="checkbox" />
+                    <input
+                      aria-label={`选择 Task 模板 ${template.name}`}
+                      checked={checked}
+                      onChange={() => props.onToggleTemplate(template.id)}
+                      type="checkbox"
+                    />
                     <span><strong>{index + 1}. {template.name}</strong><small>{template.nodeIds.length} 个工艺节点</small></span>
                   </label>
                   <div className="scheduler-bench__template-actions">
+                    <button aria-label={`编辑 Task 模板结果路线 ${template.name}`} onClick={() => openResultRoutesEditor(template)} title="编辑结果路线" type="button">路线</button>
                     <button aria-label={`下载 Task 模板 ${template.name}`} onClick={() => props.onDownloadTemplate(template.id)} title="下载 JSON" type="button">下载</button>
                     <button
                       aria-label={`删除 Task 模板 ${template.name}`}
@@ -840,6 +881,48 @@ export function TaskSchedulerBench(props: Props) {
           </section>
         </aside>
       </section>
+      {editingRouteTemplate && (
+        <div className="scheduler-bench__modal-backdrop" onMouseDown={() => setEditingRouteTemplateId(null)}>
+          <section
+            aria-label="Task 模板结果路线"
+            className="scheduler-bench__modal scheduler-bench__route-modal"
+            onMouseDown={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <header>
+              <div>
+                <span>Task template routes</span>
+                <h2>{editingRouteTemplate.name}</h2>
+                <p>根据末节点动作返回的 route 选择后续 Task。</p>
+              </div>
+              <button aria-label="关闭结果路线编辑" onClick={() => setEditingRouteTemplateId(null)} type="button">×</button>
+            </header>
+            <div className="scheduler-bench__route-body">
+              <label htmlFor="task-template-result-routes">结果路线 JSON</label>
+              <textarea
+                id="task-template-result-routes"
+                onChange={(event) => {
+                  setResultRoutesDraft(event.target.value);
+                  setResultRoutesError('');
+                }}
+                spellCheck={false}
+                value={resultRoutesDraft}
+              />
+              {resultRoutesError && <p className="scheduler-bench__route-error">{resultRoutesError}</p>}
+              <small>
+                可用目标：{props.templates
+                  .filter((template) => template.id !== editingRouteTemplate.id)
+                  .map((template) => `${template.name} (${template.id})`)
+                  .join('；') || '暂无其他模板'}
+              </small>
+            </div>
+            <div className="scheduler-bench__modal-actions">
+              <button className="scheduler-btn scheduler-btn--primary" onClick={saveResultRoutes} type="button">保存路线</button>
+              <span>路线未命中的后续 Task 会自动取消。</span>
+            </div>
+          </section>
+        </div>
+      )}
       {editingTask && (
         <div className="scheduler-bench__modal-backdrop" onMouseDown={() => setEditingTask(null)}>
           <section aria-label="Task 实例入参" className="scheduler-bench__modal scheduler-bench__parameter-modal" onMouseDown={(event) => event.stopPropagation()} role="dialog">
