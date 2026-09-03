@@ -101,7 +101,7 @@
         "workflow_path": "szlab_robot_action_workflow.json",
         "node_ids": [
           "w06_pick_beaker_s04",
-          "w05_place_beaker_s09_for_density"
+          "w06_place_beaker_s05"
         ],
         "resources": [],
         "input_triggers": [],
@@ -143,11 +143,11 @@
       },
       {
         "id": "task_d_da41b87829a24cbba9262ff288433bc9",
-        "name": "S09 取料 等 2 步",
+        "name": "S05 取料 等 2 步",
         "workflow_path": "szlab_robot_action_workflow.json",
         "node_ids": [
-          "w06_pick_beaker_s09_after_density",
-          "w06_place_beaker_s05"
+          "w06_pick_beaker_s05_for_density",
+          "w05_place_beaker_s09_for_density"
         ],
         "resources": [],
         "input_triggers": [],
@@ -155,10 +155,36 @@
       },
       {
         "id": "task_e_5fbb2f3ca4ec48858235973f215790d1",
-        "name": "执行烧杯姿势拍照检测",
+        "name": "执行烧杯拍照并判断溶解",
         "workflow_path": "szlab_robot_action_workflow.json",
         "node_ids": [
           "w06_take_photo_s05"
+        ],
+        "resources": [],
+        "input_triggers": [],
+        "output_triggers": [],
+        "result_routes": {
+          "density": [
+            "task_d_da41b87829a24cbba9262ff288433bc9",
+            "task_a_cd95e25dfecb4111bf765f4ec3ab7f0a",
+            "task_b_61f34e0be1cf43698f26c239260efd78",
+            "task_c_2bfd4697cf5d459ba36b78371135a3b9",
+            "task_f_b087e3046afc4bcfb460c380848412ed",
+            "task_g_84ba71f7736749a2bf3c7cac7a1548ee",
+            "task_h_340aaf8e2e49421da313ee156f2f03da"
+          ],
+          "reject": [
+            "task_i_a1caf7d8d2f743e1a24e8f849ceabb88"
+          ]
+        }
+      },
+      {
+        "id": "task_i_a1caf7d8d2f743e1a24e8f849ceabb88",
+        "name": "S05 未溶解直返 S11",
+        "workflow_path": "szlab_robot_action_workflow.json",
+        "node_ids": [
+          "w06_pick_beaker_s05_for_reject",
+          "w06_place_beaker_s11_for_reject"
         ],
         "resources": [],
         "input_triggers": [],
@@ -166,10 +192,10 @@
       },
       {
         "id": "task_f_b087e3046afc4bcfb460c380848412ed",
-        "name": "S05 取料 等 3 步",
+        "name": "S09 取料 等 3 步",
         "workflow_path": "szlab_robot_action_workflow.json",
         "node_ids": [
-          "w07_pick_beaker_s05",
+          "w06_pick_beaker_s09_after_density",
           "w07_pour_beaker_s08",
           "w07_place_beaker_s11"
         ],
