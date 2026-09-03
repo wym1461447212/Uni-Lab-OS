@@ -2861,6 +2861,204 @@ def test_action_result_selects_follow_up_route_idempotently(
     )
 
 
+def test_result_routes_are_isolated_per_sample_and_keep_manual_rack_positions(
+    tmp_path,
+):
+    client = _client_with_workflow(tmp_path)
+    template_ids = [
+        "decision",
+        "density-transfer",
+        "reject-return",
+        "density-measure",
+        "beaker-finish",
+        "vial-finish",
+    ]
+    templates = [
+        {
+            **_template(template_id, input_triggers=[], output_triggers=[]),
+            **(
+                {
+                    "result_routes": {
+                        "density": [
+                            "density-transfer",
+                            "density-measure",
+                            "beaker-finish",
+                            "vial-finish",
+                        ],
+                        "reject": ["reject-return"],
+                    }
+                }
+                if template_id == "decision"
+                else {}
+            ),
+        }
+        for template_id in template_ids
+    ]
+    saved = client.put(
+        "/workspaces",
+        json={
+            "expected_version": 0,
+            "workspace": {
+                "workflow_path": "demo.json",
+                "templates": templates,
+                "task_instances": [],
+                "scheduled_template_ids": template_ids,
+            },
+        },
+    )
+    assert saved.status_code == 200
+
+    sample_parameters = {}
+    for sample_id, rack_position in (("Sample A", "1-1"), ("Sample B", "1-2")):
+        sample_parameters[sample_id] = {
+            "reject-return": {
+                "reject-return-node": {
+                    "product_type": 1,
+                    "position": rack_position,
+                }
+            },
+            "beaker-finish": {
+                "beaker-finish-node": {
+                    "product_type": 1,
+                    "position": rack_position,
+                }
+            },
+            "vial-finish": {
+                "vial-finish-node": {
+                    "product_type": 2,
+                    "position": rack_position,
+                }
+            },
+        }
+    generated = client.post(
+        "/instances:generate",
+        json={
+            "workflow_path": "demo.json",
+            "expected_version": 1,
+            "template_ids": template_ids,
+            "sample_ids": ["Sample A", "Sample B"],
+            "sample_template_node_parameters": sample_parameters,
+        },
+    )
+    assert generated.status_code == 200
+    instances = {
+        (item["sample_id"], item["template_id"]): item
+        for item in generated.json()["workspace"]["task_instances"]
+    }
+    assert instances[("Sample A", "reject-return")]["payload"]["node_parameters"][
+        "reject-return-node"
+    ] == {"product_type": 1, "position": "1-1"}
+    assert instances[("Sample B", "beaker-finish")]["payload"]["node_parameters"][
+        "beaker-finish-node"
+    ] == {"product_type": 1, "position": "1-2"}
+    assert instances[("Sample B", "vial-finish")]["payload"]["node_parameters"][
+        "vial-finish-node"
+    ] == {"product_type": 2, "position": "1-2"}
+
+    advanced = client.post(
+        "/schedule:advance",
+        json={"workflow_path": "demo.json", "expected_version": 2},
+    )
+    assert advanced.status_code == 200
+    advanced_instances = {
+        (item["sample_id"], item["template_id"]): item
+        for item in advanced.json()["workspace"]["task_instances"]
+    }
+    sample_a_decision = advanced_instances[("Sample A", "decision")]
+    sample_b_decision = advanced_instances[("Sample B", "decision")]
+    assert sample_a_decision["status"] == "running"
+    assert sample_b_decision["status"] == "running"
+
+    for expected_version, decision, execution_id in (
+        (3, sample_a_decision, "exec-sample-a-decision"),
+        (4, sample_b_decision, "exec-sample-b-decision"),
+    ):
+        claimed = client.post(
+            "/actions:claim",
+            json=_action_request(
+                expected_version,
+                decision["id"],
+                "decision-node",
+                execution_id,
+            ),
+        )
+        assert claimed.status_code == 200
+
+    sample_a_result = client.post(
+        "/actions:succeed",
+        json=_action_request(
+            5,
+            sample_a_decision["id"],
+            "decision-node",
+            "exec-sample-a-decision",
+            result={"success": True, "data": {"route": "reject"}},
+            release_resources=[],
+        ),
+    )
+    assert sample_a_result.status_code == 200
+    after_sample_a = {
+        (item["sample_id"], item["template_id"]): item
+        for item in sample_a_result.json()["workspace"]["task_instances"]
+    }
+    assert after_sample_a[("Sample A", "reject-return")]["status"] in {
+        "waiting",
+        "pending",
+    }
+    assert {
+        after_sample_a[("Sample A", template_id)]["status"]
+        for template_id in (
+            "density-transfer",
+            "density-measure",
+            "beaker-finish",
+            "vial-finish",
+        )
+    } == {"cancelled"}
+    assert after_sample_a[("Sample B", "density-transfer")]["status"] in {
+        "waiting",
+        "pending",
+    }
+    assert after_sample_a[("Sample B", "reject-return")]["status"] in {
+        "waiting",
+        "pending",
+    }
+
+    sample_b_result = client.post(
+        "/actions:succeed",
+        json=_action_request(
+            6,
+            sample_b_decision["id"],
+            "decision-node",
+            "exec-sample-b-decision",
+            result={"success": True, "data": {"route": "density"}},
+            release_resources=[],
+        ),
+    )
+    assert sample_b_result.status_code == 200
+    final_instances = {
+        (item["sample_id"], item["template_id"]): item
+        for item in sample_b_result.json()["workspace"]["task_instances"]
+    }
+    assert final_instances[("Sample B", "reject-return")]["status"] == "cancelled"
+    assert {
+        final_instances[("Sample B", template_id)]["status"]
+        for template_id in (
+            "density-transfer",
+            "density-measure",
+            "beaker-finish",
+            "vial-finish",
+        )
+    } <= {"waiting", "pending"}
+    assert final_instances[("Sample A", "reject-return")]["payload"][
+        "node_parameters"
+    ]["reject-return-node"]["position"] == "1-1"
+    assert final_instances[("Sample B", "beaker-finish")]["payload"][
+        "node_parameters"
+    ]["beaker-finish-node"]["position"] == "1-2"
+    assert final_instances[("Sample B", "vial-finish")]["payload"][
+        "node_parameters"
+    ]["vial-finish-node"]["position"] == "1-2"
+
+
 @pytest.mark.parametrize(
     ("result", "expected_code"),
     [
