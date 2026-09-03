@@ -1265,6 +1265,60 @@ def test_szlab_photoshotting_parses_dissolution_result(monkeypatch):
     assert result == json.loads(device.last_dissolution_result)
 
 
+def test_szlab_photoshotting_parses_undissolved_result(monkeypatch):
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            return False
+
+        def read(self):
+            return b'{"result": 0}'
+
+    monkeypatch.setattr(
+        "unilabos.devices.workstation.szlab_poly_studio.s05_photoshotting.photoshotting.request.urlopen",
+        lambda req, timeout: FakeResponse(),
+    )
+    device = SzlabMixerPhotoShottingDevice(
+        use_plc_gateway=True,
+        dissolution_service_url="http://inference:8003/",
+    )
+
+    result = device._run_dissolution_detection("sample-1")
+
+    assert result == {
+        "status": "completed",
+        "sample_id": "sample-1",
+        "result": 0,
+        "solubility": False,
+        "raw_result": {"result": 0},
+    }
+
+
+def test_szlab_photoshotting_keeps_detection_error_distinct_from_undissolved(monkeypatch):
+    def fail_urlopen(req, timeout):
+        raise TimeoutError("dissolution service timeout")
+
+    monkeypatch.setattr(
+        "unilabos.devices.workstation.szlab_poly_studio.s05_photoshotting.photoshotting.request.urlopen",
+        fail_urlopen,
+    )
+    device = SzlabMixerPhotoShottingDevice(
+        use_plc_gateway=True,
+        dissolution_service_url="http://inference:8003/",
+    )
+
+    result = device._run_dissolution_detection("sample-1")
+
+    assert result == {
+        "status": "error",
+        "sample_id": "sample-1",
+        "solubility": "unknown",
+        "message": "dissolution service timeout",
+    }
+
+
 def test_szlab_poly_plc_uses_node_id_map_without_browsing(monkeypatch, tmp_path):
     pytest.importorskip("pylabrobot")
     from unilabos.devices.workstation.szlab_poly_studio.plc import SZLabPolyPLCDevice
