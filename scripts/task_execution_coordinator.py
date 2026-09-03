@@ -1050,10 +1050,6 @@ class TaskExecutionCoordinator:
             "failed": 0,
         }
         with self._lock:
-            had_local_execution = any(
-                action.workflow_path == workflow_path
-                for action in self._in_flight.values()
-            )
             self._harvest_completed(stats)
             self._retry_pending_terminal_report(stats)
             self._update_activity_stats(stats)
@@ -1090,6 +1086,10 @@ class TaskExecutionCoordinator:
             "diagnostics": [],
         }
         with self._lock:
+            had_local_execution = any(
+                action.workflow_path == workflow_path
+                for action in self._in_flight.values()
+            )
             self._harvest_completed(stats)
             if self._retry_pending_terminal_report(
                 stats, workflow_path=workflow_path
@@ -1847,7 +1847,7 @@ class TaskExecutionCoordinator:
                     action.error = enriched
                     return
                 raise RuntimeError(f"动作返回 success=false: {failure}")
-            action.result_summary = summary
+            action.result_summary = _task_report_result(summary)
         except Exception as exc:
             base_error = {
                 "success": False,
@@ -1918,3 +1918,22 @@ def _json_safe(value: Any) -> Any:
     if isinstance(value, (list, tuple, set)):
         return [_json_safe(item) for item in value]
     return repr(value)
+
+
+def _task_report_result(summary: Any) -> Any:
+    """路由动作需要将设备返回的 data.route 直接交给 Task API。"""
+    if not isinstance(summary, list) or len(summary) != 1:
+        return summary
+    item = summary[0]
+    if not isinstance(item, dict):
+        return summary
+    result = item.get("result")
+    if not isinstance(result, dict):
+        return summary
+    data = result.get("data")
+    if not isinstance(data, dict):
+        return summary
+    route = data.get("route")
+    if not isinstance(route, str) or not route.strip():
+        return summary
+    return result

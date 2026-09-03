@@ -1176,6 +1176,33 @@ def test_completed_future_is_reported_with_json_safe_summary_and_empty_release()
     assert client.failed == []
 
 
+def test_routed_action_reports_device_result_with_top_level_route():
+    client = FakeTaskClient(
+        _workspace_response(node_ids=["node_003_dose_powder"])
+    )
+    coordinator = _coordinator(
+        client,
+        lambda _node, _devices, _action_callable: [{
+            "uuid": "node_003_dose_powder",
+            "result": {
+                "success": True,
+                "data": {"route": "reject", "dissolved": False},
+            },
+        }],
+    )
+    nodes = [_node("node_003_dose_powder", "dose_powder")]
+
+    coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=nodes)
+    result = _harvest(coordinator, nodes)
+
+    assert result["completed"] == 1
+    assert client.succeeded[0]["result"] == {
+        "success": True,
+        "data": {"route": "reject", "dissolved": False},
+    }
+    assert client.failed == []
+
+
 def test_harvest_only_reports_done_future_without_dispatch_read_or_claim():
     class CountingTaskClient(FakeTaskClient):
         def __init__(self, response):
