@@ -313,7 +313,7 @@
             "node": "S05 拍照",
             "workflow_node_id": "w06_take_photo_s05",
             "device_id": "szlab_s05_photoshotting",
-            "method": "take_photo",
+            "method": "take_photo_and_detect_dissolution",
             "params": {
               "sample_id": "sample-001",
               "photo_path": "",
