@@ -180,7 +180,7 @@ class SzlabMixerPhotoShottingDevice:
         self,
         sample_id: str = "",
     ) -> dict[str, Any]:
-        """执行溶解检测；检测失败不改变 S05 拍照动作的成功状态。"""
+        """执行溶解检测并返回原始判定状态。"""
         service_url = self.dissolution_service_url
         self._last_dissolution_result = {
             "status": "running",
@@ -352,22 +352,13 @@ class SzlabMixerPhotoShottingDevice:
             time.sleep(1.0)
         return last_code, last_label
 
-    @action(auto_prefix=True, description="执行烧杯姿势拍照检测")
-    def take_photo(
+    @not_action
+    def _run_photo_check(
         self,
         sample_id: str = "",
         photo_path: str = "",
-        inspection_result: str = "",
-        require_material: bool = False,
     ) -> dict[str, Any]:
-        """
-        Args:
-            sample_id[样品ID]: 用于生成照片文件名和结果记录的样品标识。
-            photo_path[照片路径]: 保留参数；相机照片链接接口接入后由设备侧获取。
-            inspection_result[算法结果]: 保留参数；S05 当前按 PLC 拍照结果判断。
-            require_material[要求有料]: 兼容旧工作流参数；实机动作始终要求拍照位置有料。
-        """
-        del inspection_result, require_material
+        """执行 S05 拍照及 PLC 结果校验。"""
         self._status = "Running"
         if not self._wait_material_present():
             self._status = "Error"
@@ -415,10 +406,74 @@ class SzlabMixerPhotoShottingDevice:
                 "message": f"S05 拍照检测 {result_label}",
                 "data": data,
             }
-        data["dissolution_detection_triggered"] = self._start_dissolution_detection(sample_id)
         return {
             "success": True,
             "message": f"S05 拍照检测完成，结果 {result_label}",
+            "data": data,
+        }
+
+    @action(auto_prefix=True, description="执行烧杯姿势拍照检测")
+    def take_photo(
+        self,
+        sample_id: str = "",
+        photo_path: str = "",
+        inspection_result: str = "",
+        require_material: bool = False,
+    ) -> dict[str, Any]:
+        """
+        Args:
+            sample_id[样品ID]: 用于生成照片文件名和结果记录的样品标识。
+            photo_path[照片路径]: 保留参数；相机照片链接接口接入后由设备侧获取。
+            inspection_result[算法结果]: 保留参数；S05 当前按 PLC 拍照结果判断。
+            require_material[要求有料]: 兼容旧工作流参数；实机动作始终要求拍照位置有料。
+        """
+        del inspection_result, require_material
+        result = self._run_photo_check(sample_id=sample_id, photo_path=photo_path)
+        if result.get("success"):
+            result["data"]["dissolution_detection_triggered"] = self._start_dissolution_detection(sample_id)
+        return result
+
+    @action(auto_prefix=True, description="执行烧杯姿势拍照并判断溶解")
+    def take_photo_and_detect_dissolution(
+        self,
+        sample_id: str = "",
+        photo_path: str = "",
+        inspection_result: str = "",
+        require_material: bool = False,
+    ) -> dict[str, Any]:
+        """
+        Args:
+            sample_id[样品ID]: 用于生成照片文件名和结果记录的样品标识。
+            photo_path[照片路径]: 保留参数；相机照片链接接口接入后由设备侧获取。
+            inspection_result[算法结果]: 保留参数；S05 当前按 PLC 拍照结果判断。
+            require_material[要求有料]: 兼容旧工作流参数；实机动作始终要求拍照位置有料。
+        """
+        del inspection_result, require_material
+        photo_result = self._run_photo_check(sample_id=sample_id, photo_path=photo_path)
+        if not photo_result.get("success"):
+            return photo_result
+
+        self._status = "Running"
+        self._wait_for_dissolution_trigger()
+        dissolution = self._run_dissolution_detection(sample_id)
+        solubility = dissolution.get("solubility")
+        data = {**photo_result["data"], "dissolution": dissolution}
+        if dissolution.get("status") != "completed" or not isinstance(solubility, bool):
+            self._status = "Error"
+            message = dissolution.get("message") or "溶解检测未返回明确结果"
+            return {
+                "success": False,
+                "status": "dissolution_detection_failed",
+                "message": f"S05 溶解检测失败：{message}",
+                "data": data,
+            }
+
+        route = "density" if solubility else "reject"
+        data.update({"dissolved": solubility, "route": route})
+        self._status = "Idle"
+        return {
+            "success": True,
+            "message": f"S05 拍照和溶解检测完成，后续路线 {route}",
             "data": data,
         }
 

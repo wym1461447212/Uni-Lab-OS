@@ -418,7 +418,7 @@ def test_szlab_photoshotting_device_is_ast_scannable_from_own_package():
 
     assert set(result["devices"]) == {"szlab_mixer_photoshotting"}
     actions = result["devices"]["szlab_mixer_photoshotting"]["actions"]
-    assert list(actions) == ["take_photo"]
+    assert list(actions) == ["take_photo", "take_photo_and_detect_dissolution"]
 
 
 def test_szlab_magnetic_stirrer_device_is_ast_scannable_from_own_package():
@@ -1195,6 +1195,96 @@ def test_szlab_photoshotting_schedules_dissolution_without_blocking(monkeypatch)
         "solubility": "unknown",
         "delay_seconds": 2.0,
     }
+
+
+@pytest.mark.parametrize(
+    ("solubility", "expected_route"),
+    [(True, "density"), (False, "reject")],
+)
+def test_szlab_photoshotting_returns_route_after_synchronous_dissolution_detection(
+    monkeypatch,
+    solubility,
+    expected_route,
+):
+    class FakePlcGateway:
+        def wait_variable_true(self, name, interval=1.0):
+            return True
+
+        def read_variable(self, name, use_cache=False):
+            return 1
+
+    device = SzlabMixerPhotoShottingDevice(
+        use_plc_gateway=True,
+        dissolution_service_url="http://inference:8003/",
+    )
+    device.set_plc_gateway(FakePlcGateway())
+    calls = []
+    dissolution = {
+        "status": "completed",
+        "sample_id": "sample-1",
+        "result": int(solubility),
+        "solubility": solubility,
+    }
+    monkeypatch.setattr(
+        device,
+        "_wait_for_dissolution_trigger",
+        lambda: calls.append("wait"),
+    )
+    monkeypatch.setattr(
+        device,
+        "_run_dissolution_detection",
+        lambda sample_id: calls.append(("detect", sample_id)) or dissolution,
+    )
+    monkeypatch.setattr(
+        device,
+        "_start_dissolution_detection",
+        lambda sample_id: pytest.fail("同步动作不应启动后台溶解检测"),
+    )
+
+    result = device.take_photo_and_detect_dissolution(sample_id="sample-1")
+
+    assert result["success"] is True
+    assert result["data"]["dissolution"] == dissolution
+    assert result["data"]["dissolved"] is solubility
+    assert result["data"]["route"] == expected_route
+    assert calls == ["wait", ("detect", "sample-1")]
+    assert device.status == "Idle"
+
+
+def test_szlab_photoshotting_fails_synchronous_action_when_dissolution_detection_errors(monkeypatch):
+    class FakePlcGateway:
+        def wait_variable_true(self, name, interval=1.0):
+            return True
+
+        def read_variable(self, name, use_cache=False):
+            return 1
+
+    device = SzlabMixerPhotoShottingDevice(
+        use_plc_gateway=True,
+        dissolution_service_url="http://inference:8003/",
+    )
+    device.set_plc_gateway(FakePlcGateway())
+    monkeypatch.setattr(device, "_wait_for_dissolution_trigger", lambda: None)
+    dissolution = {
+        "status": "error",
+        "sample_id": "sample-1",
+        "solubility": "unknown",
+        "message": "dissolution service timeout",
+    }
+    monkeypatch.setattr(
+        device,
+        "_run_dissolution_detection",
+        lambda sample_id: dissolution,
+    )
+
+    result = device.take_photo_and_detect_dissolution(sample_id="sample-1")
+
+    assert result["success"] is False
+    assert result["status"] == "dissolution_detection_failed"
+    assert "dissolution service timeout" in result["message"]
+    assert result["data"]["dissolution"] == dissolution
+    assert "route" not in result["data"]
+    assert device.status == "Error"
 
 
 def test_szlab_photoshotting_waits_before_dissolution_detection(monkeypatch):
