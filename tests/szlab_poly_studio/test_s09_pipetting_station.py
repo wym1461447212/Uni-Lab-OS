@@ -51,6 +51,7 @@ def test_s09_pipetting_station_is_ast_scannable_from_own_package():
         "run_process",
         "add_liquid",
         "add_liquid_with_reusable_tip",
+        "replace_reusable_tip",
         "measure_density",
         "add_liquid_to_beaker",
         "run_liquid_workflow",
@@ -449,6 +450,65 @@ def test_s09_reusable_tip_action_replaces_tip_at_limit(tmp_path):
     assert results[2]["data"]["tip_reuse"]["take_tip_box_index"] == 1
     assert status["tips"]["1"]["status"] == "exhausted"
     assert status["tips"]["2"]["status"] == "bound"
+
+
+def test_s09_reusable_tip_action_can_force_manual_replacement(tmp_path):
+    client = PseudoSzlabS09OpcUaClient({"S09液体瓶1剩余液量": 100.0})
+    device = make_pipetting_device(
+        client,
+        tip_reuse_state_path=str(tmp_path / "tip_state.json"),
+    )
+    device.initialize_reusable_tip_inventory()
+    first = device.add_liquid_with_reusable_tip(
+        liquid_station_index=1,
+        solvent_batch_id="batch-a",
+        volume=1,
+    )
+
+    replaced = device.replace_reusable_tip(
+        liquid_station_index=1,
+        solvent_batch_id="batch-a",
+    )
+    second = device.add_liquid_with_reusable_tip(
+        liquid_station_index=1,
+        solvent_batch_id="batch-a",
+        volume=1,
+    )
+    status = device.get_reusable_tip_status()["data"]
+
+    assert first["success"] is True
+    assert replaced["success"] is True
+    assert replaced["data"]["tip_replacement"]["old_tip_index"] == 1
+    assert replaced["data"]["tip_replacement"]["new_tip_index"] == 2
+    assert second["success"] is True
+    assert second["data"]["tip_reuse"]["tip_index"] == 2
+    assert status["tips"]["1"]["status"] == "exhausted"
+    assert status["tips"]["2"]["status"] == "bound"
+
+
+def test_s09_reusable_tip_action_can_replace_before_addition(tmp_path):
+    client = PseudoSzlabS09OpcUaClient({"S09液体瓶1剩余液量": 100.0})
+    device = make_pipetting_device(
+        client,
+        tip_reuse_state_path=str(tmp_path / "tip_state.json"),
+    )
+    device.initialize_reusable_tip_inventory()
+    device.add_liquid_with_reusable_tip(
+        liquid_station_index=1,
+        solvent_batch_id="batch-a",
+        volume=1,
+    )
+
+    result = device.add_liquid_with_reusable_tip(
+        liquid_station_index=1,
+        solvent_batch_id="batch-a",
+        volume=1,
+        replace_tip=True,
+    )
+
+    assert result["success"] is True
+    assert result["data"]["tip_reuse"]["tip_index"] == 2
+    assert result["data"]["tip_reuse"]["replacement"]["old_tip_index"] == 1
 
 
 def test_s09_reusable_tip_action_quarantines_tip_after_uncertain_take(

@@ -117,6 +117,26 @@ def test_tip_is_replaced_early_when_operation_needs_more_remaining_cycles(tmp_pa
     assert state["tips"]["1"]["use_count"] == 2
 
 
+def test_manual_tip_replacement_retires_old_binding_and_preserves_history(tmp_path):
+    store = ReusableTipStateStore(tmp_path / "tip_state.json")
+    store.initialize()
+    store.prepare_tip("S10-1", liquid_station_index=3)
+    store.record_tip_use("S10-1", cycles=2)
+
+    replacement = store.replace_tip("S10-1", liquid_station_index=4)
+    state = store.snapshot()
+
+    assert replacement["old_tip_index"] == 1
+    assert replacement["new_tip_index"] == 2
+    assert replacement["old_tip"]["use_count"] == 2
+    assert replacement["new_tip"]["current_box"] == 1
+    assert state["tips"]["1"]["status"] == TIP_STATUS_EXHAUSTED
+    assert state["tips"]["2"]["status"] == TIP_STATUS_BOUND
+    assert state["solvents"]["S10-1"]["active_tip_index"] == 2
+    assert state["solvents"]["S10-1"]["active_s09_slot"] == 4
+    assert state["solvents"]["S10-1"]["tip_history"] == [1, 2]
+
+
 def test_tip_preparation_rejects_operation_larger_than_tip_limit(tmp_path):
     store = ReusableTipStateStore(
         tmp_path / "tip_state.json",

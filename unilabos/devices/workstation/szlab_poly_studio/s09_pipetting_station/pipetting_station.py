@@ -970,6 +970,7 @@ class SzlabMixerPipettingStationDevice:
         volume_unit: str = "raw",
         skip_level_check: bool = False,
         reuse_tip: bool = True,
+        replace_tip: bool = False,
         liquid_count: int = 1,
         liquid_additions: list[dict[str, Any]] | None = None,
         initialize_tip_inventory: bool = False,
@@ -995,6 +996,7 @@ class SzlabMixerPipettingStationDevice:
                         volume_unit=volume_unit,
                         skip_level_check=skip_level_check,
                         reuse_tip=bool(addition["reuse_tip"]),
+                        replace_tip=bool(addition.get("replace_tip", False)),
                     )
                 except (KeyError, TypeError, ValueError) as exc:
                     return {
@@ -1025,6 +1027,8 @@ class SzlabMixerPipettingStationDevice:
             raw_volume = self._volume_to_raw(volume, volume_unit)
             if raw_volume <= 0:
                 raise ValueError("S09 加液量必须大于 0")
+            if replace_tip and not reuse_tip:
+                raise ValueError("replace_tip 只能与 reuse_tip=True 一起使用")
             transfer_chunks = self._split_raw_volume(raw_volume)
             required_cycles = len(transfer_chunks)
         except (TypeError, ValueError) as exc:
@@ -1033,8 +1037,14 @@ class SzlabMixerPipettingStationDevice:
         # 同一批次在不同液体工位可能对应不同溶剂瓶，必须分别绑定 TIP。
         solvent_key = f"S09-STATION-{liquid_station_index}:BATCH:{solvent_batch_id}"
         with self._tip_reuse_execution_lock:
+            tip_replacement = None
             try:
                 if reuse_tip:
+                    if replace_tip:
+                        tip_replacement = self._tip_reuse_state.replace_tip(
+                            solvent_key,
+                            liquid_station_index=liquid_station_index,
+                        )
                     tip = self._tip_reuse_state.prepare_tip(
                         solvent_key,
                         required_cycles=required_cycles,
@@ -1056,6 +1066,8 @@ class SzlabMixerPipettingStationDevice:
                 "release_tip_box_index": 2,
                 "required_cycles": required_cycles,
             }
+            if tip_replacement is not None:
+                liquid_tip_tracking["replacement"] = tip_replacement
             conditions = {
                 S09_TIP_BOX_SENSORS[liquid_tip_tracking["take_tip_box_index"]]: True,
                 S09_TIP_BOX_SENSORS[liquid_tip_tracking["release_tip_box_index"]]: True,
@@ -1219,6 +1231,41 @@ class SzlabMixerPipettingStationDevice:
                 "steps": steps,
                 "logs": logs,
             }
+
+    @action(auto_prefix=True, description="手动更换 S09 溶剂批次绑定 TIP")
+    def replace_reusable_tip(
+        self,
+        liquid_station_index: int = 1,
+        solvent_batch_id: str = "",
+    ) -> dict[str, Any]:
+        try:
+            liquid_station_index = validate_liquid_bottle(liquid_station_index)
+            solvent_batch_id = str(solvent_batch_id).strip()
+            if not solvent_batch_id:
+                raise ValueError("S09 换 TIP 必须提供明确的 solvent_batch_id")
+        except (TypeError, ValueError) as exc:
+            return {"success": False, "message": str(exc)}
+
+        solvent_key = f"S09-STATION-{liquid_station_index}:BATCH:{solvent_batch_id}"
+        with self._tip_reuse_execution_lock:
+            try:
+                replacement = self._tip_reuse_state.replace_tip(
+                    solvent_key,
+                    liquid_station_index=liquid_station_index,
+                )
+            except Exception as exc:
+                return {"success": False, "message": str(exc)}
+        return {
+            "success": True,
+            "message": "S09 TIP 已更换",
+            "data": {
+                "liquid_station_index": liquid_station_index,
+                "solvent_batch_id": solvent_batch_id,
+                "solvent_key": solvent_key,
+                "tip_replacement": replacement,
+                "tip_reuse": replacement["new_tip"],
+            },
+        }
 
     @action(auto_prefix=True, description="执行 S09 独立密度测量并自动管理一次性 TIP")
     def measure_density(

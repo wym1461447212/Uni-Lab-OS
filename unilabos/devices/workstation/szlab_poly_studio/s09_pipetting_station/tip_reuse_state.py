@@ -308,6 +308,67 @@ class ReusableTipStateStore:
             self._save_locked()
             return copy.deepcopy(tip | {"tip_index": tip_index})
 
+    def replace_tip(
+        self,
+        solvent_key: str | int,
+        *,
+        liquid_station_index: int | None = None,
+    ) -> dict[str, Any]:
+        """手动报废当前绑定 TIP，并为同一溶剂批次绑定一支新 TIP。"""
+        key = self._normalize_solvent_key(solvent_key)
+        with self._lock:
+            self._require_initialized_locked()
+            solvent = self._state["solvents"].get(key)
+            if solvent is None or solvent["active_tip_index"] is None:
+                raise RuntimeError(f"S09 溶剂 {key} 尚未绑定 TIP")
+            if solvent["status"] == TIP_STATUS_UNKNOWN:
+                raise RuntimeError(f"S09 溶剂 {key} 的 TIP 状态不确定，必须人工确认")
+
+            old_tip_index = int(solvent["active_tip_index"])
+            old_tip = self._state["tips"].get(str(old_tip_index))
+            if (
+                old_tip is None
+                or old_tip["status"] != TIP_STATUS_BOUND
+                or old_tip["solvent_key"] != key
+            ):
+                raise RuntimeError(f"S09 溶剂 {key} 的 TIP 绑定状态不一致")
+
+            new_tip_index = next(
+                (
+                    index
+                    for index in range(1, self.tip_count + 1)
+                    if self._state["tips"][str(index)]["status"] == TIP_STATUS_UNUSED
+                ),
+                None,
+            )
+            if new_tip_index is None:
+                raise RuntimeError("S09 盒1中没有可分配的新 TIP")
+
+            old_tip_snapshot = copy.deepcopy(old_tip | {"tip_index": old_tip_index})
+            old_tip.update({"status": TIP_STATUS_EXHAUSTED, "current_box": 2})
+            new_tip = self._state["tips"][str(new_tip_index)]
+            new_tip.update(
+                {
+                    "status": TIP_STATUS_BOUND,
+                    "solvent_key": key,
+                    "current_box": 1,
+                    "use_count": 0,
+                }
+            )
+            solvent["active_tip_index"] = new_tip_index
+            solvent["tip_history"].append(new_tip_index)
+            solvent["status"] = "ready"
+            if liquid_station_index is not None:
+                solvent["active_s09_slot"] = int(liquid_station_index)
+            self._save_locked()
+            return {
+                "solvent_key": key,
+                "old_tip": old_tip_snapshot,
+                "new_tip": copy.deepcopy(new_tip | {"tip_index": new_tip_index}),
+                "old_tip_index": old_tip_index,
+                "new_tip_index": new_tip_index,
+            }
+
     def prepare_single_use_tip(self) -> dict[str, Any]:
         """分配一支不与任何溶剂绑定的一次性 TIP。"""
         with self._lock:
