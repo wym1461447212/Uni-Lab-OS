@@ -7,6 +7,7 @@ from unilabos.app.scheduler import (
     WorkflowNode,
     WorkflowSpec,
     WorkflowState,
+    build_tip_box_change_workflow,
 )
 from unilabos.app.scheduler.dispatch import RecordingDispatcher
 from unilabos.app.scheduler.inventory import InventoryService, InventoryStore
@@ -246,6 +247,17 @@ def test_default_factory_emits_restore_plus_four_robot_actions():
         ("szlab_mixer_robot", "submit_place_to_s02"),
         ("szlab_mixer_robot", "submit_pick_from_s02"),
         ("szlab_mixer_robot", "submit_place_to_s09"),
+    ]
+
+
+def test_default_tip_box_change_uses_distinct_used_and_fresh_s02_slots():
+    workflow = build_tip_box_change_workflow()
+
+    assert [(node.action_name, node.param) for node in workflow.nodes] == [
+        ("submit_pick_from_s09", {"product_type": 1, "position": 1}),
+        ("submit_place_to_s02", {"position": 1}),
+        ("submit_pick_from_s02", {"position": 2}),
+        ("submit_place_to_s09", {"product_type": 1, "position": 1}),
     ]
 
 

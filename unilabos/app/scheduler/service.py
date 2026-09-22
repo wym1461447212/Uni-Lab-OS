@@ -41,17 +41,34 @@ def build_tip_box_change_workflow(
     workflow_id: str = "tip-box-change",
     robot_device_id: str = "szlab_mixer_robot",
     priority: Any = "urgent",
+    s09_old_position: int = 1,
+    s02_used_position: int = 1,
+    s02_fresh_position: int = 2,
+    s09_new_position: int = 1,
 ) -> WorkflowSpec:
     """构造"S09 复位 + 4 个换盒动作"的完整换 TIP 盒 workflow。
 
     复位（go_to_safe_position）由 EdgeScheduler 在补料排程时注入为首节点，
     这里给出机器人搬运链本身及其串行依赖。
     """
+    action_params = {
+        "submit_pick_from_s09": {
+            "product_type": 1,
+            "position": int(s09_old_position),
+        },
+        "submit_place_to_s02": {"position": int(s02_used_position)},
+        "submit_pick_from_s02": {"position": int(s02_fresh_position)},
+        "submit_place_to_s09": {
+            "product_type": 1,
+            "position": int(s09_new_position),
+        },
+    }
     nodes = [
         WorkflowNode(
             id=action,
             device_id=robot_device_id,
             action_name=action,
+            param=action_params[action],
         )
         for action in TIP_BOX_CHANGE_ACTIONS
     ]

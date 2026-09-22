@@ -1,0 +1,141 @@
+{
+  "schema_version": 2,
+  "status": "runnable",
+  "name": "SZLab S02-S09 TIP box OPC simulator",
+  "opc": {
+    "url": "opc.tcp://127.0.0.1:4840",
+    "poll_interval": 0.05,
+    "io_timeout": 2.0
+  },
+  "variables": [
+    {"name": "Robot_Home", "direction": "plc_to_pc", "data_type": "bool", "initial_value": true, "source": "manual"},
+    {"name": "Robot_任务允许写入", "direction": "plc_to_pc", "data_type": "bool", "initial_value": true, "source": "manual"},
+    {"name": "Robot_任务写入完成", "direction": "pc_to_plc", "data_type": "bool", "source": "action_node"},
+    {"name": "任务号", "direction": "pc_to_plc", "data_type": "int", "source": "action_node"},
+    {"name": "Robot_任务完成", "direction": "plc_to_pc", "data_type": "int", "initial_value": 0, "source": "manual"},
+    {"name": "S02取放料编号", "direction": "pc_to_plc", "data_type": "int", "source": "action_node"},
+    {"name": "S09取放料产品", "direction": "pc_to_plc", "data_type": "int", "source": "action_node"},
+    {"name": "S09取放料编号", "direction": "pc_to_plc", "data_type": "int", "source": "action_node"},
+    {"name": "传感器状态_上位机[0].NO[0]", "direction": "plc_to_pc", "data_type": "bool", "initial_value": false, "source": "manual"},
+    {"name": "传感器状态_上位机[0].NO[1]", "direction": "plc_to_pc", "data_type": "bool", "initial_value": true, "source": "manual"},
+    {"name": "传感器状态_上位机[4].NO[5]", "direction": "plc_to_pc", "data_type": "bool", "initial_value": true, "source": "manual"}
+  ],
+  "nodes": [
+    {
+      "workflow_node_id": "tip-box-pick-old-from-s09",
+      "task_template_ids": ["szlab-tip-box-change"],
+      "device_id": "szlab_mixer_robot",
+      "method": "submit_pick_from_s09",
+      "params": {"product_type": 1, "position": 1},
+      "channel": "robot",
+      "trigger": {"all": [
+        {"variable": "Robot_任务写入完成", "operator": "eq", "value": true, "edge": "rising"},
+        {"variable": "任务号", "operator": "eq", "value": 20, "edge": "level"}
+      ]},
+      "on_trigger": {"writes": [
+        {"variable": "Robot_Home", "value": false},
+        {"variable": "Robot_任务允许写入", "value": false},
+        {"variable": "Robot_任务完成", "value": 0}
+      ]},
+      "on_complete": {"delay": 0.05, "writes": [
+        {"variable": "传感器状态_上位机[4].NO[5]", "value": false},
+        {"variable": "Robot_任务完成", "value": 20},
+        {"variable": "Robot_Home", "value": true}
+      ]},
+      "reset_when": {"all": [
+        {"variable": "Robot_任务写入完成", "operator": "eq", "value": false, "edge": "level"}
+      ]},
+      "after_reset": {"delay": 0, "writes": [
+        {"variable": "Robot_任务完成", "value": 0},
+        {"variable": "Robot_任务允许写入", "value": true}
+      ]}
+    },
+    {
+      "workflow_node_id": "tip-box-place-used-to-s02",
+      "task_template_ids": ["szlab-tip-box-change"],
+      "device_id": "szlab_mixer_robot",
+      "method": "submit_place_to_s02",
+      "params": {"position": 1},
+      "channel": "robot",
+      "trigger": {"all": [
+        {"variable": "Robot_任务写入完成", "operator": "eq", "value": true, "edge": "rising"},
+        {"variable": "任务号", "operator": "eq", "value": 3, "edge": "level"}
+      ]},
+      "on_trigger": {"writes": [
+        {"variable": "Robot_Home", "value": false},
+        {"variable": "Robot_任务允许写入", "value": false},
+        {"variable": "Robot_任务完成", "value": 0}
+      ]},
+      "on_complete": {"delay": 0.05, "writes": [
+        {"variable": "传感器状态_上位机[0].NO[0]", "value": true},
+        {"variable": "Robot_任务完成", "value": 3},
+        {"variable": "Robot_Home", "value": true}
+      ]},
+      "reset_when": {"all": [
+        {"variable": "Robot_任务写入完成", "operator": "eq", "value": false, "edge": "level"}
+      ]},
+      "after_reset": {"delay": 0, "writes": [
+        {"variable": "Robot_任务完成", "value": 0},
+        {"variable": "Robot_任务允许写入", "value": true}
+      ]}
+    },
+    {
+      "workflow_node_id": "tip-box-pick-fresh-from-s02",
+      "task_template_ids": ["szlab-tip-box-change"],
+      "device_id": "szlab_mixer_robot",
+      "method": "submit_pick_from_s02",
+      "params": {"position": 2},
+      "channel": "robot",
+      "trigger": {"all": [
+        {"variable": "Robot_任务写入完成", "operator": "eq", "value": true, "edge": "rising"},
+        {"variable": "任务号", "operator": "eq", "value": 4, "edge": "level"}
+      ]},
+      "on_trigger": {"writes": [
+        {"variable": "Robot_Home", "value": false},
+        {"variable": "Robot_任务允许写入", "value": false},
+        {"variable": "Robot_任务完成", "value": 0}
+      ]},
+      "on_complete": {"delay": 0.05, "writes": [
+        {"variable": "传感器状态_上位机[0].NO[1]", "value": false},
+        {"variable": "Robot_任务完成", "value": 4},
+        {"variable": "Robot_Home", "value": true}
+      ]},
+      "reset_when": {"all": [
+        {"variable": "Robot_任务写入完成", "operator": "eq", "value": false, "edge": "level"}
+      ]},
+      "after_reset": {"delay": 0, "writes": [
+        {"variable": "Robot_任务完成", "value": 0},
+        {"variable": "Robot_任务允许写入", "value": true}
+      ]}
+    },
+    {
+      "workflow_node_id": "tip-box-place-fresh-to-s09",
+      "task_template_ids": ["szlab-tip-box-change"],
+      "device_id": "szlab_mixer_robot",
+      "method": "submit_place_to_s09",
+      "params": {"product_type": 1, "position": 1},
+      "channel": "robot",
+      "trigger": {"all": [
+        {"variable": "Robot_任务写入完成", "operator": "eq", "value": true, "edge": "rising"},
+        {"variable": "任务号", "operator": "eq", "value": 19, "edge": "level"}
+      ]},
+      "on_trigger": {"writes": [
+        {"variable": "Robot_Home", "value": false},
+        {"variable": "Robot_任务允许写入", "value": false},
+        {"variable": "Robot_任务完成", "value": 0}
+      ]},
+      "on_complete": {"delay": 0.05, "writes": [
+        {"variable": "传感器状态_上位机[4].NO[5]", "value": true},
+        {"variable": "Robot_任务完成", "value": 19},
+        {"variable": "Robot_Home", "value": true}
+      ]},
+      "reset_when": {"all": [
+        {"variable": "Robot_任务写入完成", "operator": "eq", "value": false, "edge": "level"}
+      ]},
+      "after_reset": {"delay": 0, "writes": [
+        {"variable": "Robot_任务完成", "value": 0},
+        {"variable": "Robot_任务允许写入", "value": true}
+      ]}
+    }
+  ]
+}

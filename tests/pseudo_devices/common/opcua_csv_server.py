@@ -74,7 +74,12 @@ class CsvOpcUaServer:
     def _load_csv(self) -> list[NodeDefinition]:
         definitions: list[NodeDefinition] = []
         with self.csv_path.open("r", encoding="utf-8-sig", newline="") as file_obj:
-            reader = csv.DictReader(file_obj)
+            # SZLab PLC 导出表使用 TSV，而各工位调试表通常使用 CSV。
+            # 根据表头选择分隔符，避免完整 PLC 变量表被当成一列读取。
+            header = file_obj.readline()
+            file_obj.seek(0)
+            delimiter = "\t" if "\t" in header else ","
+            reader = csv.DictReader(file_obj, delimiter=delimiter)
             for row in reader:
                 name = (row.get(self.name_column) or "").strip()
                 data_type = (row.get(self.data_type_column) or "").strip().upper()
@@ -127,6 +132,14 @@ class CsvOpcUaServer:
     def stop(self) -> None:
         self.server.stop()
         LOGGER.info("OPC UA 服务已停止: object=%s", self.object_name)
+
+    def read(self, name: str) -> Any:
+        """Read a named variable for black-box TCP integration assertions."""
+        return self.nodes[name].get_value()
+
+    def write(self, name: str, value: Any) -> None:
+        """Write a named variable for integration-test setup or fault injection."""
+        self.nodes[name].set_value(value)
 
     @staticmethod
     def _coerce_value(value: Any, variant_type: ua.VariantType) -> Any:
