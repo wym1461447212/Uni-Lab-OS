@@ -11,6 +11,10 @@ from .models import (
     spec_from_dict,
 )
 from .ordering import OrderingContext, StableLocalOrderer
+from .szlab_workflow_adapter import (
+    load_szlab_workflow_spec,
+    workflow_spec_from_szlab_json,
+)
 from .service import (
     TIP_BOX_CHANGE_ACTIONS,
     EdgeScheduler,
@@ -30,5 +34,7 @@ __all__ = [
     "WorkflowNode",
     "WorkflowSpec",
     "WorkflowState",
+    "load_szlab_workflow_spec",
     "spec_from_dict",
+    "workflow_spec_from_szlab_json",
 ]
