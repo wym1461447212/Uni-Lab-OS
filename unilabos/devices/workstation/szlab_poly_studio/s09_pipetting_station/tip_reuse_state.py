@@ -30,7 +30,7 @@ class ReusableTipStateStore:
         self,
         state_path: str | Path,
         *,
-        tip_count: int = 96,
+        tip_count: int = 24,
         max_use_count: int = 20,
     ) -> None:
         self.state_path = Path(state_path)

@@ -613,7 +613,7 @@ def test_s09_reusable_tip_action_does_not_reserve_a_density_tip(tmp_path):
         client,
         tip_reuse_state_path=str(tmp_path / "tip_state.json"),
     )
-    device.initialize_reusable_tip_inventory(used_tip_count=95)
+    device.initialize_reusable_tip_inventory(used_tip_count=23)
 
     result = device.add_liquid_with_reusable_tip(
         liquid_station_index=1,
@@ -622,7 +622,7 @@ def test_s09_reusable_tip_action_does_not_reserve_a_density_tip(tmp_path):
     )
 
     assert result["success"] is True
-    assert result["data"]["tip_reuse"]["tip_index"] == 96
+    assert result["data"]["tip_reuse"]["tip_index"] == 24
     assert [step["data"]["process"] for step in result["steps"]] == [5, 7, 8, 6]
 
 
@@ -1302,7 +1302,7 @@ def test_s09_reusable_tip_inventory_actions_persist_state(tmp_path):
     assert initialized["success"] is True
     assert initialized["data"] == {
         "initialized": True,
-        "tip_count": 96,
+        "tip_count": 24,
         "max_use_count": 3,
         "used_tip_count": 0,
         "known_bindings": {},
@@ -1311,7 +1311,7 @@ def test_s09_reusable_tip_inventory_actions_persist_state(tmp_path):
     assert repeated["success"] is False
     assert "已经初始化" in repeated["message"]
     assert status["data"]["reusable_tip_state"]["initialized"] is True
-    assert len(status["data"]["reusable_tip_state"]["tips"]) == 96
+    assert len(status["data"]["reusable_tip_state"]["tips"]) == 24
 
 
 def test_s09_debug_csv_is_small_plc_input_with_remaining_volume_names():

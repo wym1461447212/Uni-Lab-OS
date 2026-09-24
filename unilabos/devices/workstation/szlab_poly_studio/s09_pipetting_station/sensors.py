@@ -55,7 +55,7 @@ S09_TRANSFER_POSITION_VAR = "S09取放料编号"
 PLC_ROBOT_TASK_VAR = "PLC_R任务号"
 
 S09_TIP_BOX_RANGE = range(1, 3)
-S09_TIP_RANGE = range(1, 97)
+S09_TIP_RANGE = range(1, 25)
 S09_LIQUID_BOTTLE_RANGE = range(1, 6)
 S09_STATION_RANGE = range(1, 6)
 S09_TIP_BOX_SENSORS = S09Sensors.TIP_BOX
@@ -112,7 +112,7 @@ def validate_tip_box(tip_box: int) -> int:
 def validate_tip(tip: int) -> int:
     tip = int(tip)
     if tip not in S09_TIP_RANGE:
-        raise ValueError("S09 TIP 编号必须在 1-96 范围内")
+        raise ValueError("S09 TIP 编号必须在 1-24 范围内")
     return tip
 
 

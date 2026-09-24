@@ -22,7 +22,7 @@ def test_tip_inventory_requires_explicit_initialization(tmp_path):
     state = store.initialize()
 
     assert state["initialized"] is True
-    assert len(state["tips"]) == 96
+    assert len(state["tips"]) == 24
     assert state["tips"]["1"] == {
         "status": TIP_STATUS_UNUSED,
         "solvent_key": None,
