@@ -5,7 +5,11 @@
   "target_device_ids": [
     "szlab_mixer_stirrer",
     "szlab_mixer_photoshotting",
-    "szlab_mixer_robot"
+    "szlab_mixer_robot",
+    "szlab_mixer_pump",
+    "szlab_mixer_pipetting_station",
+    "szlab_s07_solid_addition",
+    "szlab_s08_cap_station"
   ],
   "actions_source": "registry",
   "runtime_config": "../runtime_configs/szlab_mixer_runtime.json",
@@ -79,6 +83,64 @@
         "config": {
           "plc_device_id": "szlab_poly_plc",
           "busy_variable_name": "机器人Busy信号"
+        },
+        "data": {}
+      },
+      {
+        "id": "szlab_mixer_pump",
+        "name": "szlab_mixer_pump",
+        "children": [],
+        "parent": null,
+        "type": "device",
+        "class": "szlab_mixer_pump",
+        "position": {"x": 560, "y": 0, "z": 0},
+        "config": {
+          "url": "${opcua_url}",
+          "plc_device_id": "szlab_poly_plc",
+          "use_plc_gateway": true
+        },
+        "data": {}
+      },
+      {
+        "id": "szlab_mixer_pipetting_station",
+        "name": "szlab_mixer_pipetting_station",
+        "children": [],
+        "parent": null,
+        "type": "device",
+        "class": "szlab_mixer_pipetting_station",
+        "position": {"x": 700, "y": 0, "z": 0},
+        "config": {
+          "url": "${opcua_url}",
+          "plc_device_id": "szlab_poly_plc",
+          "use_plc_gateway": true
+        },
+        "data": {}
+      },
+      {
+        "id": "szlab_s07_solid_addition",
+        "name": "szlab_s07_solid_addition",
+        "children": [],
+        "parent": null,
+        "type": "device",
+        "class": "szlab_s07_solid_addition",
+        "position": {"x": 840, "y": 0, "z": 0},
+        "config": {
+          "plc_device_id": "szlab_poly_plc",
+          "poll_interval": 0.2
+        },
+        "data": {}
+      },
+      {
+        "id": "szlab_s08_cap_station",
+        "name": "szlab_s08_cap_station",
+        "children": [],
+        "parent": null,
+        "type": "device",
+        "class": "szlab_s08_cap_station",
+        "position": {"x": 980, "y": 0, "z": 0},
+        "config": {
+          "plc_device_id": "szlab_poly_plc",
+          "use_plc_gateway": true
         },
         "data": {}
       }

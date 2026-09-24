@@ -7,12 +7,13 @@
 from __future__ import annotations
 
 import uuid
+import re
 from dataclasses import dataclass, field
 from threading import RLock
 from typing import Any, Callable
 
 from .dispatch import build_job_start_payload
-from .inventory.domain import InsufficientStock
+from .inventory.domain import InsufficientStock, MaterialSwitchRequired
 from .models import (
     DispatchedJob,
     ReadyTask,
@@ -96,6 +97,79 @@ def _default_tip_box_change_factory(
     return build_tip_box_change_workflow()
 
 
+def _container_position(container_id: str, *patterns: str) -> int:
+    for pattern in patterns:
+        match = re.search(pattern, container_id or "")
+        if match:
+            return int(match.group(1))
+    return 1
+
+
+def build_liquid_bottle_switch_workflow(
+    *,
+    workflow_id: str = "liquid-bottle-switch",
+    current_container_id: str,
+    replacement_container_id: str,
+    robot_device_id: str = "szlab_mixer_robot",
+    priority: Any = "urgent",
+) -> WorkflowSpec:
+    """将 S09 当前液体瓶换成 S10 仓中的备用液体瓶。"""
+    current_s09 = _container_position(current_container_id, r"s09[-_]liquid[-_]station[-_](\d+)")
+    source_s10 = _container_position(replacement_container_id, r"s10[-_]liquid[-_]position[-_](\d+)", r"s10[-_]liquid[-_]station[-_](\d+)")
+    action_specs = [
+        ("pick_current", "submit_pick_from_s09", {"product_type": 2, "position": current_s09}),
+        ("store_current", "submit_place_to_s10", {"position": current_s09}),
+        ("pick_replacement", "submit_pick_from_s10", {"position": source_s10}),
+        ("place_replacement", "submit_place_to_s09", {"product_type": 2, "position": current_s09}),
+    ]
+    nodes = [
+        WorkflowNode(
+            id=f"{workflow_id}:{node_id}",
+            device_id=robot_device_id,
+            action_name=action_name,
+            param=params,
+            resource_lock_keys=("station:S09", "station:S10"),
+        )
+        for node_id, action_name, params in action_specs
+    ]
+    edges = [
+        WorkflowEdge(
+            uuid=f"{nodes[index].id}->{nodes[index + 1].id}",
+            source_node_id=nodes[index].id,
+            target_node_id=nodes[index + 1].id,
+        )
+        for index in range(len(nodes) - 1)
+    ]
+    return WorkflowSpec(workflow_id=workflow_id, nodes=nodes, edges=edges, priority=priority)
+
+
+def _default_material_switch_factory(spec: Any, requirements: Any = None, shortage: Any = None) -> WorkflowSpec | None:
+    del spec, requirements
+    if shortage is None or not shortage.replacement_container_id:
+        return None
+    current = shortage.container_id
+    replacement = shortage.replacement_container_id
+    if "s09" in current.lower() or "liquid" in current.lower():
+        return build_liquid_bottle_switch_workflow(
+            current_container_id=current,
+            replacement_container_id=replacement,
+        )
+    if "s07" in current.lower() or "powder" in current.lower():
+        position = _container_position(replacement, r"(?:position|pos)[-_](\d+)")
+        return WorkflowSpec(
+            workflow_id="powder-cartridge-switch",
+            priority="urgent",
+            nodes=[WorkflowNode(
+                id="rotate_powder_cartridge",
+                device_id="szlab_s07_solid_addition",
+                action_name="rotate_powder_cartridge_to_feed",
+                param={"position": position},
+                resource_lock_keys=("station:S07",),
+            )],
+        )
+    return None
+
+
 @dataclass
 class _Run:
     spec: WorkflowSpec
@@ -149,6 +223,8 @@ class EdgeScheduler:
         inventory: Any | None = None,
         material_replenishment_factory: Callable[..., WorkflowSpec | dict[str, Any]]
         | None = None,
+        material_switch_factory: Callable[..., WorkflowSpec | dict[str, Any]]
+        | None = None,
         material_replenishment_priority: Any = "urgent",
         material_replenishment_s09_device_id: str = "szlab_mixer_pipetting_station",
         material_replenishment_s09_home_position: int | str = 1,
@@ -157,9 +233,11 @@ class EdgeScheduler:
         self.orderer = orderer or StableLocalOrderer()
         self.dispatcher = dispatcher
         self.inventory = inventory
+        self._default_material_replenishment_factory = material_replenishment_factory is None
         self.material_replenishment_factory = (
             material_replenishment_factory or _default_tip_box_change_factory
         )
+        self.material_switch_factory = material_switch_factory or _default_material_switch_factory
         self.material_replenishment_max_attempts = int(
             material_replenishment_max_attempts
         )
@@ -178,6 +256,8 @@ class EdgeScheduler:
         self._deferred_material_workflows: set[str] = set()
         self._material_waiting_nodes: dict[str, str] = {}
         self._material_replenishment_by_run: dict[str, str] = {}
+        self._material_switch_by_run: dict[str, str] = {}
+        self._material_switch_shortages: dict[str, MaterialSwitchRequired] = {}
         self._material_replenished_run_by_workflow: dict[str, str] = {}
         self._material_replenishment_attempts: dict[str, int] = {}
         self._reschedule_count = 0
@@ -255,6 +335,9 @@ class EdgeScheduler:
             return True
         try:
             self.inventory.reserve_workflow(run.spec.run_id, requirements)
+        except MaterialSwitchRequired as exc:
+            self._material_switch_shortages[run.spec.workflow_id] = exc
+            return False
         except InsufficientStock:
             return False
         return True
@@ -266,6 +349,9 @@ class EdgeScheduler:
             self.inventory.reserve_node(
                 run.spec.run_id, node.id, list(node.material_requirements)
             )
+        except MaterialSwitchRequired as exc:
+            self._material_switch_shortages[run.spec.workflow_id] = exc
+            return False
         except InsufficientStock:
             return False
         return True
@@ -346,10 +432,42 @@ class EdgeScheduler:
                 except TypeError:
                     raise first_error
 
+    def _call_material_switch_factory(self, run: _Run):
+        if self.material_switch_factory is None:
+            return None
+        shortage = self._material_switch_shortages.get(run.spec.workflow_id)
+        requirements = self._requirements(run)
+        try:
+            return self.material_switch_factory(run.spec, requirements, shortage)
+        except TypeError as first_error:
+            try:
+                return self.material_switch_factory(run.spec, requirements)
+            except TypeError:
+                try:
+                    return self.material_switch_factory(run.spec)
+                except TypeError:
+                    raise first_error
+
     def _ensure_material_replenishment(self, run: _Run) -> bool:
         if run.spec.workflow_id in self._material_replenishment_by_run:
             return False
-        result = self._call_replenishment_factory(run)
+        is_switch = run.spec.workflow_id in self._material_switch_shortages
+        # 默认补料工厂是 TIP 盒专用逻辑；普通液体/固体总量不足时必须保持
+        # waiting_for_material，不能误触发换 TIP 盒 workflow。
+        if is_switch is False and self._default_material_replenishment_factory:
+            requirements = self._requirements(run)
+            if not any(
+                str(getattr(req, "unit", "")).lower() in {"tip", "tip_box", "tip-box"}
+                or "tip" in str(getattr(req, "lot_id", "")).lower()
+                for values in requirements.values()
+                for req in values
+            ):
+                return False
+        result = (
+            self._call_material_switch_factory(run)
+            if is_switch
+            else self._call_replenishment_factory(run)
+        )
         if result is None:
             return False
         spec = self._coerce_spec(result)
@@ -368,6 +486,8 @@ class EdgeScheduler:
         synthetic = _Run(spec=spec)
         self._workflows[spec.workflow_id] = synthetic
         self._material_replenishment_by_run[run.spec.workflow_id] = spec.workflow_id
+        if is_switch:
+            self._material_switch_by_run[run.spec.workflow_id] = spec.workflow_id
         self._material_replenished_run_by_workflow[spec.workflow_id] = (
             run.spec.workflow_id
         )
@@ -576,6 +696,22 @@ class EdgeScheduler:
                 run.completed.add(job.node_id)
                 if run.is_terminal():
                     run.state = WorkflowState.SUCCESS
+                    original_id = self._material_replenished_run_by_workflow.get(job.workflow_id)
+                    if original_id and job.workflow_id in self._material_switch_by_run.values():
+                        original = self._workflows.get(original_id)
+                        shortage = self._material_switch_shortages.get(original_id)
+                        switch_container = getattr(self.inventory, "switch_container", None)
+                        switched = (
+                            switch_container(shortage.lot_id, shortage.container_id, getattr(shortage, "quantity", 0.0))
+                            if callable(switch_container) and shortage is not None
+                            else None
+                        )
+                        if switched is not None and original is not None:
+                            # 先保留 waiting 状态，让下一轮 reconcile 重新执行
+                            # reserve_node；只有预留成功后才改为 running。
+                            self._material_switch_shortages.pop(original_id, None)
+                            self._material_switch_by_run.pop(original_id, None)
+                            self._material_replenishment_by_run.pop(original_id, None)
             else:
                 run.failed_node_id = job.node_id
                 run.state = WorkflowState.FAILED
@@ -642,6 +778,7 @@ class EdgeScheduler:
                     for workflow_id in self._workflows
                 ],
                 "material_replenishments": dict(self._material_replenishment_by_run),
+                "material_switches": dict(self._material_switch_by_run),
             }
 
     def get_workflow_state(self, workflow_id: str) -> WorkflowState:

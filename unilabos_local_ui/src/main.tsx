@@ -38,6 +38,7 @@ import {
   workflowDraftKey,
 } from './workflowDraft';
 import { createPseudoFlowJson } from './workflowExport';
+import { createSzlabPresetFlow } from './szlabPresetWorkflow';
 import { WorkstationDemo } from './WorkstationDemo';
 import './taskSchedulerBench.css';
 import { TaskSchedulerBench } from './TaskSchedulerBench';
@@ -1802,7 +1803,19 @@ function App() {
           setStartNodeId(loadSavedStartNodeId(storageKey, savedDraft.nodes));
           setViewportFitKey((current) => current + 1);
         } else {
-          setWorkflowName(payload.default_workflow_name || 'szlab_canvas_workflow');
+          try {
+            const imported = createImportedDraft(createSzlabPresetFlow(), payloadActions, { autoLayout: true }) as {
+              name: string;
+              nodes: Node<ActionNodeData>[];
+              edges: Edge[];
+            };
+            setWorkflowName(imported.name);
+            setNodes(imported.nodes);
+            setEdges(imported.edges.map((edge) => ({ ...edge, animated: true })));
+            setMessage(`已加载 SZLab 预置工作流：${imported.nodes.length} 个串行 action`);
+          } catch {
+            setWorkflowName(payload.default_workflow_name || 'szlab_canvas_workflow');
+          }
           setStartNodeId(null);
         }
         setConfig((current) => ({
@@ -3424,6 +3437,40 @@ function App() {
     }
   };
 
+  const loadSzlabPreset = useCallback(async () => {
+    try {
+      // Refresh the action catalog immediately before importing. This avoids
+      // using a stale/partial catalog when the backend preset was restarted
+      // or when the initial /api/preset request has not finished yet.
+      const response = await fetch('/api/preset', { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`读取当前 preset 失败（HTTP ${response.status}）`);
+      }
+      const payload = await response.json() as PresetPayload;
+      const presetActions = payload.actions || [];
+      actionsRef.current = presetActions;
+      setActions(presetActions);
+      const imported = createImportedDraft(createSzlabPresetFlow(), presetActions, { autoLayout: true }) as {
+        name: string;
+        nodes: Node<ActionNodeData>[];
+        edges: Edge[];
+      };
+      const canvasWidth = canvasWorkspaceRef.current?.clientWidth ?? 0;
+      setWorkflowName(imported.name);
+      setTaskWorkspacePath(`${imported.name}.json`);
+      setNodes(expandLayoutToWidth(imported.nodes, canvasWidth));
+      setEdges(imported.edges.map((edge) => ({ ...edge, animated: true })));
+      setStartNodeId(null);
+      setWorkflow(null);
+      setRunStatus(null);
+      setActiveRunId(null);
+      bumpViewportFit();
+      setMessage(`已加载 SZLab 预置工作流：${imported.nodes.length} 个串行 action`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    }
+  }, [bumpViewportFit]);
+
   useEffect(() => {
     if (!nodes.length) {
       setWorkflow(null);
@@ -3827,6 +3874,7 @@ function App() {
                 onChange={importFlowJson}
               />
               <button onClick={() => importFileRef.current?.click()}>导入 Flow JSON</button>
+              <button className="primary" onClick={loadSzlabPreset}>加载 SZLab 预置</button>
               <button onClick={() => buildWorkflow().catch((error) => setMessage(error.message))}>校验流程</button>
               <button onClick={exportPseudoFlow} disabled={!nodes.length}>导出 Flow JSON</button>
             </div>

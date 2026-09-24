@@ -27,6 +27,9 @@ class MaterialRequirement:
     lot_id: str
     quantity: float = 1.0
     unit: str = ""
+    # 当前 action 绑定的料桶/料位。为空时只按 lot 总量准入。
+    container_id: str = ""
+    material_id: str = ""
 
 
 @dataclass
@@ -127,8 +130,10 @@ def node_from_dict(data: dict[str, Any]) -> WorkflowNode:
     requirements = [
         MaterialRequirement(
             lot_id=str(item.get("lot_id") or item.get("lotId") or ""),
+            material_id=str(item.get("material_id") or item.get("materialId") or ""),
             quantity=float(item.get("quantity", 1.0)),
             unit=str(item.get("unit") or ""),
+            container_id=str(item.get("container_id") or item.get("containerId") or ""),
         )
         for item in data.get("material_requirements", [])
         if isinstance(item, dict)

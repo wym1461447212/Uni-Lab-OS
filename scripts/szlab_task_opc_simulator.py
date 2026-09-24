@@ -50,7 +50,17 @@ _VARIABLE_SOURCES = {
     "task_output",
     "manual",
 }
-_ROOT_FIELDS = {"schema_version", "status", "name", "opc", "variables", "nodes"}
+_ROOT_FIELDS = {
+    "schema_version",
+    "status",
+    "name",
+    "opc",
+    "variables",
+    "nodes",
+    "includes",
+    "robot_tasks",
+    "s03_slots",
+}
 _VARIABLE_FIELDS = {"name", "direction", "data_type", "initial_value", "source"}
 _NODE_FIELDS = {
     "workflow_node_id",
@@ -587,6 +597,252 @@ def load_simulator_profile(
         payload = json.loads(content)
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"无法读取模拟器配置 {profile_path}: {exc}") from exc
+    # Profiles may compose the small, already-tested station profiles.  This
+    # keeps the full-workflow simulator declarative without duplicating OPC
+    # handshake rules in several JSON files.
+    if isinstance(payload, dict) and isinstance(payload.get("includes"), list):
+        merged = dict(payload)
+        variables = list(merged.get("variables") or [])
+        nodes = list(merged.get("nodes") or [])
+        variable_names = {item.get("name") for item in variables if isinstance(item, dict)}
+        node_ids = {item.get("workflow_node_id") for item in nodes if isinstance(item, dict)}
+        for include in payload["includes"]:
+            if not isinstance(include, str):
+                raise ValueError(f"模拟器 includes 必须是字符串: {include!r}")
+            include_path = (profile_path.parent / include).resolve()
+            include_payload = json.loads(include_path.read_text(encoding="utf-8"))
+            for item in include_payload.get("variables", []):
+                if isinstance(item, dict) and item.get("name") not in variable_names:
+                    variables.append(item); variable_names.add(item.get("name"))
+            for item in include_payload.get("nodes", []):
+                # A full profile can replace the legacy single-position S03
+                # node with its position-aware ``s03_slots`` expansion.
+                if (
+                    isinstance(payload.get("s03_slots"), list)
+                    and isinstance(item, dict)
+                    and item.get("method") in {"submit_pick_from_s03", "submit_place_to_s03"}
+                ):
+                    continue
+                if isinstance(item, dict) and item.get("workflow_node_id") not in node_ids:
+                    nodes.append(item); node_ids.add(item.get("workflow_node_id"))
+        merged["variables"] = variables
+        merged["nodes"] = nodes
+        merged.pop("includes", None)
+        payload = merged
+    if isinstance(payload, dict) and isinstance(payload.get("robot_tasks"), list):
+        expanded = dict(payload)
+        nodes = list(expanded.get("nodes") or [])
+        existing = {
+            item.get("method") for item in nodes if isinstance(item, dict)
+        }
+        for item in payload["robot_tasks"]:
+            if not isinstance(item, dict):
+                raise ValueError("robot_tasks 条目必须是对象")
+            method = str(item.get("method") or "").strip()
+            task_number = item.get("task_number")
+            if not method or type(task_number) is not int:
+                raise ValueError("robot_tasks 必须包含 method 和整数 task_number")
+            if method in existing:
+                continue
+            nodes.append({
+                "workflow_node_id": f"robot-{method}",
+                "task_template_ids": ["szlab-main-process"],
+                "device_id": "szlab_mixer_robot",
+                "method": method,
+                "params": dict(item.get("params") or {}),
+                "channel": "robot",
+                "trigger": {"all": [
+                    {"variable": "Robot_任务写入完成", "operator": "eq", "value": True, "edge": "rising"},
+                    {"variable": "任务号", "operator": "eq", "value": task_number, "edge": "level"},
+                ]},
+                "on_trigger": {"writes": [
+                    {"variable": "Robot_Home", "value": False},
+                    {"variable": "Robot_任务允许写入", "value": False},
+                    {"variable": "Robot_任务完成", "value": 0},
+                ]},
+                "on_complete": {"delay": 0.05, "writes": [
+                    {"variable": "Robot_任务完成", "value": task_number},
+                    {"variable": "Robot_Home", "value": True},
+                ]},
+                "reset_when": {"all": [
+                    {"variable": "Robot_任务写入完成", "operator": "eq", "value": False, "edge": "level"},
+                ]},
+                "after_reset": {"delay": 0, "writes": [
+                    {"variable": "Robot_任务完成", "value": 0},
+                    {"variable": "Robot_任务允许写入", "value": True},
+                ]},
+            })
+            existing.add(method)
+        expanded["nodes"] = nodes
+        expanded.pop("robot_tasks", None)
+        payload = expanded
+    if isinstance(payload, dict) and isinstance(payload.get("s03_slots"), list):
+        # S03 is position-dependent: the PLC task number is the same for every
+        # slot, while S03取放料编号 selects the physical stack position.  Keep
+        # that relationship declarative in the profile and expand one place
+        # and one pick node per slot before strict schema validation.
+        expanded = dict(payload)
+        variables = list(expanded.get("variables") or [])
+        nodes = list(expanded.get("nodes") or [])
+        variable_names = {
+            item.get("name") for item in variables if isinstance(item, dict)
+        }
+        node_ids = {
+            item.get("workflow_node_id")
+            for item in nodes
+            if isinstance(item, dict)
+        }
+
+        def add_variable(
+            name: str,
+            direction: str,
+            data_type: str,
+            source: str,
+            initial_value: Any = _MISSING,
+        ) -> None:
+            if name in variable_names:
+                return
+            item: dict[str, Any] = {
+                "name": name,
+                "direction": direction,
+                "data_type": data_type,
+                "source": source,
+            }
+            if initial_value is not _MISSING:
+                item["initial_value"] = initial_value
+            variables.append(item)
+            variable_names.add(name)
+
+        # These are the common S03/robot handshake variables.  Existing
+        # definitions from included profiles win, so this is safe for the
+        # full-workflow profile as well as the standalone S03 profile.
+        add_variable("S03取放料产品", "pc_to_plc", "int", "action_node")
+        add_variable("S03取放料编号", "pc_to_plc", "int", "action_node")
+        add_variable("任务号", "pc_to_plc", "int", "action_node")
+        add_variable("Robot_任务写入完成", "pc_to_plc", "bool", "manual")
+        add_variable("Robot_Home", "plc_to_pc", "bool", "manual", True)
+        add_variable("Robot_任务允许写入", "plc_to_pc", "bool", "manual", True)
+        add_variable("Robot_任务完成", "plc_to_pc", "int", "manual", 0)
+        add_variable("工站状态[2]", "plc_to_pc", "int", "manual", 2)
+
+        for slot in payload["s03_slots"]:
+            if not isinstance(slot, dict):
+                raise ValueError("s03_slots 条目必须是对象")
+            position = str(slot.get("position") or "").strip()
+            sensor = str(slot.get("sensor") or "").strip()
+            product_type = slot.get("product_type", 1)
+            slot_number = slot.get("slot_number")
+            if not position or not sensor or type(product_type) is not int:
+                raise ValueError(
+                    "s03_slots 必须包含 position、sensor 和整数 product_type"
+                )
+            if slot_number is None:
+                try:
+                    row, column = (int(part) for part in position.split("-", 1))
+                    slot_number = (row - 1) * 6 + column
+                except (TypeError, ValueError) as exc:
+                    raise ValueError(f"无效的 S03 position: {position!r}") from exc
+            if type(slot_number) is not int or slot_number < 1:
+                raise ValueError("s03_slots.slot_number 必须是正整数")
+            initial_value = slot.get("initial_value", False)
+            if type(initial_value) is not bool:
+                raise ValueError("s03_slots.initial_value 必须是 bool")
+            add_variable(sensor, "plc_to_pc", "bool", "action_sensor", initial_value)
+
+            def add_s03_node(
+                action: str,
+                task_number: int,
+                target_value: bool,
+            ) -> None:
+                node_id = f"s03-{action}-{position}"
+                if node_id in node_ids:
+                    return
+                nodes.append(
+                    {
+                        "workflow_node_id": node_id,
+                        "task_template_ids": ["szlab-s03-robot"],
+                        "device_id": "szlab_mixer_robot",
+                        "method": f"submit_{action}_from_s03"
+                        if action == "pick"
+                        else "submit_place_to_s03",
+                        "params": {
+                            "product_type": product_type,
+                            "position": position,
+                        },
+                        "channel": "robot",
+                        "trigger": {
+                            "all": [
+                                {
+                                    "variable": "Robot_任务写入完成",
+                                    "operator": "eq",
+                                    "value": True,
+                                    "edge": "rising",
+                                },
+                                {
+                                    "variable": "任务号",
+                                    "operator": "eq",
+                                    "value": task_number,
+                                    "edge": "level",
+                                },
+                                {
+                                    "variable": "S03取放料产品",
+                                    "operator": "eq",
+                                    "value": product_type,
+                                    "edge": "level",
+                                },
+                                {
+                                    "variable": "S03取放料编号",
+                                    "operator": "eq",
+                                    "value": slot_number,
+                                    "edge": "level",
+                                },
+                            ]
+                        },
+                        "on_trigger": {
+                            "writes": [
+                                {"variable": "Robot_Home", "value": False},
+                                {"variable": "Robot_任务允许写入", "value": False},
+                                {"variable": "Robot_任务完成", "value": 0},
+                                {"variable": "工站状态[2]", "value": 3},
+                            ]
+                        },
+                        "on_complete": {
+                            "delay": 0.05,
+                            "writes": [
+                                {"variable": sensor, "value": target_value},
+                                {"variable": "Robot_任务完成", "value": task_number},
+                                {"variable": "Robot_Home", "value": True},
+                                {"variable": "工站状态[2]", "value": 2},
+                            ],
+                        },
+                        "reset_when": {
+                            "all": [
+                                {
+                                    "variable": "Robot_任务写入完成",
+                                    "operator": "eq",
+                                    "value": False,
+                                    "edge": "level",
+                                }
+                            ]
+                        },
+                        "after_reset": {
+                            "delay": 0,
+                            "writes": [
+                                {"variable": "Robot_任务完成", "value": 0},
+                                {"variable": "Robot_任务允许写入", "value": True},
+                            ],
+                        },
+                    }
+                )
+                node_ids.add(node_id)
+
+            add_s03_node("place", 5, True)
+            add_s03_node("pick", 6, False)
+
+        expanded["variables"] = variables
+        expanded["nodes"] = nodes
+        expanded.pop("s03_slots", None)
+        payload = expanded
     return _parse_profile(payload)
 
 

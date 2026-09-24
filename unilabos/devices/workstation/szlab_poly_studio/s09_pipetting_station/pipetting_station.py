@@ -498,10 +498,16 @@ class SzlabMixerPipettingStationDevice:
             home_position = validate_home_position(home_position)
         except ValueError as exc:
             return {"success": False, "message": str(exc)}
-        result = self.run_process(process=home_position, require_allow=require_allow)
-        if not result.get("success", False):
-            return result
-        logs = list(result.get("logs") or [])
+        # 安全位不是 S09 的 5–9 号移液工艺，不能通过 run_process 写入
+        # ``S09工艺选择=1..4``。这里仅执行安全门禁：允许加工（若要求）
+        # 和对应原点信号均来自 PLC，确认后换盒 workflow 才能继续。
+        logs: list[dict[str, Any]] = []
+        if require_allow:
+            try:
+                if not self._wait_allow_process():
+                    return {"success": False, "message": "等待 S09 允许加工失败", "logs": logs}
+            except Exception as exc:
+                return {"success": False, "message": str(exc), "logs": logs}
         self._append_log(
             logs,
             f"等待机械臂到达 S09 安全位{home_position}",
@@ -527,7 +533,7 @@ class SzlabMixerPipettingStationDevice:
             f"S09 安全位{home_position}原点信号读取完成",
             {"home_position": home_position, "result": home.get("data")},
         )
-        return {**home, "process": result, "logs": logs}
+        return {**home, "logs": logs}
 
     @action(auto_prefix=True, description="确认 S09 唯一加液工位空闲")
     def prepare_liquid_station(self) -> dict[str, Any]:
@@ -795,6 +801,11 @@ class SzlabMixerPipettingStationDevice:
             clear_result = self._clear_process_params(process)
             data["clear_process_params"] = clear_result
             self._append_log(logs, "S09 工艺参数清零完成", clear_result)
+            # PLC 以扫描周期采集 PC->PLC 信号；保持“参数写入完成=False”
+            # 一小段时间，避免连续工艺之间的 false/true 脉冲被 PLC/模拟器
+            # 合并，从而确保下一工艺能形成新的 rising edge。
+            if reset_delay > 0:
+                time.sleep(float(reset_delay))
             if not clear_result["success"] and self._status != "Error":
                 self._status = "Error"
                 return {

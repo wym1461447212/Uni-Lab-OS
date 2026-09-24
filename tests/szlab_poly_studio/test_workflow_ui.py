@@ -614,6 +614,18 @@ def test_szlab_mixer_ui_preset_uses_current_csv_and_s04_s05_actions():
     assert preset.actions["take_photo"].device_id == "szlab_mixer_photoshotting"
     assert preset.actions["submit_pick_from_s04"].device_id == "szlab_mixer_robot"
     assert preset.actions["submit_place_to_s05"].device_id == "szlab_mixer_robot"
+    # The combined SZLab preset must expose the actions used by the canonical
+    # workflow, not only the original S04/S05 actions.
+    assert preset.actions["run_solvent_addition"].device_id == "szlab_mixer_pump"
+    assert (
+        preset.actions["add_liquid_with_reusable_tip"].device_id
+        == "szlab_mixer_pipetting_station"
+    )
+    assert (
+        preset.actions["rotate_powder_cartridge_to_feed"].device_id
+        == "szlab_s07_solid_addition"
+    )
+    assert preset.actions["process_cap"].device_id == "szlab_s08_cap_station"
 
     workflow = build_graph_workflow(
         flow_nodes=[

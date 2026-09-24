@@ -60,8 +60,10 @@ def _material_requirements(action: Mapping[str, Any], path: str) -> list[Materia
         result.append(
             MaterialRequirement(
                 lot_id=lot_id,
+                material_id=str(item.get("material_id") or item.get("materialId") or ""),
                 quantity=quantity,
                 unit=str(item.get("unit") or ""),
+                container_id=str(item.get("container_id") or item.get("containerId") or ""),
             )
         )
     return result

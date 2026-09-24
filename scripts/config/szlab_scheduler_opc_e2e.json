@@ -1,0 +1,95 @@
+{
+  "schema_version": 2,
+  "status": "runnable",
+  "name": "SZLab scheduler inventory OPC E2E",
+  "opc": {
+    "url": "opc.tcp://127.0.0.1:4840",
+    "poll_interval": 0.05,
+    "io_timeout": 2.0
+  },
+  "includes": ["szlab_tip_box_opc_simulator.json"],
+  "variables": [
+    {"name":"S03取放料产品","direction":"pc_to_plc","data_type":"int","source":"action_node"},
+    {"name":"S03取放料编号","direction":"pc_to_plc","data_type":"int","source":"action_node"},
+    {"name":"任务号","direction":"pc_to_plc","data_type":"int","source":"action_node"},
+    {"name":"S09原点信号_1","direction":"plc_to_pc","data_type":"bool","source":"manual","initial_value":true},
+    {"name":"S09允许加工","direction":"plc_to_pc","data_type":"bool","source":"manual","initial_value":true},
+    {"name":"S09工艺选择","direction":"pc_to_plc","data_type":"int","source":"action_node"},
+    {"name":"S09参数写入完成","direction":"pc_to_plc","data_type":"bool","source":"action_node"},
+    {"name":"S09工艺完成","direction":"plc_to_pc","data_type":"int","source":"action_node","initial_value":0},
+    {"name":"传感器状态_上位机[0].NO[6]","direction":"plc_to_pc","data_type":"bool","source":"action_sensor","initial_value":true},
+    {"name":"传感器状态_上位机[0].NO[7]","direction":"plc_to_pc","data_type":"bool","source":"action_sensor","initial_value":true},
+    {"name":"传感器状态_上位机[0].NO[8]","direction":"plc_to_pc","data_type":"bool","source":"action_sensor","initial_value":true},
+    {"name":"传感器状态_上位机[0].NO[9]","direction":"plc_to_pc","data_type":"bool","source":"action_sensor","initial_value":true},
+    {"name":"传感器状态_上位机[0].NO[10]","direction":"plc_to_pc","data_type":"bool","source":"action_sensor","initial_value":true},
+    {"name":"传感器状态_上位机[0].NO[11]","direction":"plc_to_pc","data_type":"bool","source":"action_sensor","initial_value":true}
+  ],
+  "nodes": [
+    {
+      "workflow_node_id":"e2e-s09-safe-position-1",
+      "task_template_ids":["szlab-tip-box-change"],
+      "device_id":"szlab_mixer_pipetting_station",
+      "method":"go_to_safe_position",
+      "params":{"home_position":1,"require_allow":true},
+      "channel":"s09",
+      "trigger":{"all":[{"variable":"S09参数写入完成","operator":"eq","value":true,"edge":"rising"},{"variable":"S09工艺选择","operator":"eq","value":1,"edge":"level"}]},
+      "on_trigger":{"writes":[{"variable":"S09工艺完成","value":0}]},
+      "on_complete":{"delay":0.05,"writes":[{"variable":"S09工艺完成","value":1}]},
+      "reset_when":{"all":[{"variable":"S09参数写入完成","operator":"eq","value":false,"edge":"level"}]},
+      "after_reset":{"delay":0,"writes":[]}
+    },
+    {
+      "workflow_node_id":"e2e-pick-beaker-1-1",
+      "task_template_ids":["szlab-scheduler-e2e"],
+      "device_id":"szlab_mixer_robot",
+      "method":"submit_pick_from_s03",
+      "params":{"product_type":1,"position":"1-1"},
+      "channel":"robot",
+      "trigger":{"all":[
+        {"variable":"Robot_任务写入完成","operator":"eq","value":true,"edge":"rising"},
+        {"variable":"任务号","operator":"eq","value":6,"edge":"level"},
+        {"variable":"S03取放料产品","operator":"eq","value":1,"edge":"level"},
+        {"variable":"S03取放料编号","operator":"eq","value":1,"edge":"level"}
+      ]},
+      "on_trigger":{"writes":[{"variable":"Robot_Home","value":false},{"variable":"Robot_任务允许写入","value":false},{"variable":"Robot_任务完成","value":0}]},
+      "on_complete":{"delay":0.05,"writes":[{"variable":"传感器状态_上位机[0].NO[6]","value":false},{"variable":"Robot_任务完成","value":6},{"variable":"Robot_Home","value":true}]},
+      "reset_when":{"all":[{"variable":"Robot_任务写入完成","operator":"eq","value":false,"edge":"level"}]},
+      "after_reset":{"delay":0,"writes":[{"variable":"Robot_任务完成","value":0},{"variable":"Robot_任务允许写入","value":true}]}
+    },
+    {
+      "workflow_node_id":"e2e-pick-beaker-1-2",
+      "task_template_ids":["szlab-scheduler-e2e"],
+      "device_id":"szlab_mixer_robot","method":"submit_pick_from_s03","params":{"product_type":1,"position":"1-2"},"channel":"robot",
+      "trigger":{"all":[{"variable":"Robot_任务写入完成","operator":"eq","value":true,"edge":"rising"},{"variable":"任务号","operator":"eq","value":6,"edge":"level"},{"variable":"S03取放料产品","operator":"eq","value":1,"edge":"level"},{"variable":"S03取放料编号","operator":"eq","value":2,"edge":"level"}]},
+      "on_trigger":{"writes":[{"variable":"Robot_Home","value":false},{"variable":"Robot_任务允许写入","value":false},{"variable":"Robot_任务完成","value":0}]},"on_complete":{"delay":0.05,"writes":[{"variable":"传感器状态_上位机[0].NO[7]","value":false},{"variable":"Robot_任务完成","value":6},{"variable":"Robot_Home","value":true}]},"reset_when":{"all":[{"variable":"Robot_任务写入完成","operator":"eq","value":false,"edge":"level"}]},"after_reset":{"delay":0,"writes":[{"variable":"Robot_任务完成","value":0},{"variable":"Robot_任务允许写入","value":true}]}
+    },
+    {
+      "workflow_node_id":"e2e-pick-beaker-1-3",
+      "task_template_ids":["szlab-scheduler-e2e"],
+      "device_id":"szlab_mixer_robot","method":"submit_pick_from_s03","params":{"product_type":1,"position":"1-3"},"channel":"robot",
+      "trigger":{"all":[{"variable":"Robot_任务写入完成","operator":"eq","value":true,"edge":"rising"},{"variable":"任务号","operator":"eq","value":6,"edge":"level"},{"variable":"S03取放料产品","operator":"eq","value":1,"edge":"level"},{"variable":"S03取放料编号","operator":"eq","value":3,"edge":"level"}]},
+      "on_trigger":{"writes":[{"variable":"Robot_Home","value":false},{"variable":"Robot_任务允许写入","value":false},{"variable":"Robot_任务完成","value":0}]},"on_complete":{"delay":0.05,"writes":[{"variable":"传感器状态_上位机[0].NO[8]","value":false},{"variable":"Robot_任务完成","value":6},{"variable":"Robot_Home","value":true}]},"reset_when":{"all":[{"variable":"Robot_任务写入完成","operator":"eq","value":false,"edge":"level"}]},"after_reset":{"delay":0,"writes":[{"variable":"Robot_任务完成","value":0},{"variable":"Robot_任务允许写入","value":true}]}
+    },
+    {
+      "workflow_node_id":"e2e-pick-beaker-1-4",
+      "task_template_ids":["szlab-scheduler-e2e"],
+      "device_id":"szlab_mixer_robot","method":"submit_pick_from_s03","params":{"product_type":1,"position":"1-4"},"channel":"robot",
+      "trigger":{"all":[{"variable":"Robot_任务写入完成","operator":"eq","value":true,"edge":"rising"},{"variable":"任务号","operator":"eq","value":6,"edge":"level"},{"variable":"S03取放料产品","operator":"eq","value":1,"edge":"level"},{"variable":"S03取放料编号","operator":"eq","value":4,"edge":"level"}]},
+      "on_trigger":{"writes":[{"variable":"Robot_Home","value":false},{"variable":"Robot_任务允许写入","value":false},{"variable":"Robot_任务完成","value":0}]},"on_complete":{"delay":0.05,"writes":[{"variable":"传感器状态_上位机[0].NO[9]","value":false},{"variable":"Robot_任务完成","value":6},{"variable":"Robot_Home","value":true}]},"reset_when":{"all":[{"variable":"Robot_任务写入完成","operator":"eq","value":false,"edge":"level"}]},"after_reset":{"delay":0,"writes":[{"variable":"Robot_任务完成","value":0},{"variable":"Robot_任务允许写入","value":true}]}
+    },
+    {
+      "workflow_node_id":"e2e-pick-beaker-1-5",
+      "task_template_ids":["szlab-scheduler-e2e"],
+      "device_id":"szlab_mixer_robot","method":"submit_pick_from_s03","params":{"product_type":1,"position":"1-5"},"channel":"robot",
+      "trigger":{"all":[{"variable":"Robot_任务写入完成","operator":"eq","value":true,"edge":"rising"},{"variable":"任务号","operator":"eq","value":6,"edge":"level"},{"variable":"S03取放料产品","operator":"eq","value":1,"edge":"level"},{"variable":"S03取放料编号","operator":"eq","value":5,"edge":"level"}]},
+      "on_trigger":{"writes":[{"variable":"Robot_Home","value":false},{"variable":"Robot_任务允许写入","value":false},{"variable":"Robot_任务完成","value":0}]},"on_complete":{"delay":0.05,"writes":[{"variable":"传感器状态_上位机[0].NO[10]","value":false},{"variable":"Robot_任务完成","value":6},{"variable":"Robot_Home","value":true}]},"reset_when":{"all":[{"variable":"Robot_任务写入完成","operator":"eq","value":false,"edge":"level"}]},"after_reset":{"delay":0,"writes":[{"variable":"Robot_任务完成","value":0},{"variable":"Robot_任务允许写入","value":true}]}
+    },
+    {
+      "workflow_node_id":"e2e-pick-beaker-1-6",
+      "task_template_ids":["szlab-scheduler-e2e"],
+      "device_id":"szlab_mixer_robot","method":"submit_pick_from_s03","params":{"product_type":1,"position":"1-6"},"channel":"robot",
+      "trigger":{"all":[{"variable":"Robot_任务写入完成","operator":"eq","value":true,"edge":"rising"},{"variable":"任务号","operator":"eq","value":6,"edge":"level"},{"variable":"S03取放料产品","operator":"eq","value":1,"edge":"level"},{"variable":"S03取放料编号","operator":"eq","value":6,"edge":"level"}]},
+      "on_trigger":{"writes":[{"variable":"Robot_Home","value":false},{"variable":"Robot_任务允许写入","value":false},{"variable":"Robot_任务完成","value":0}]},"on_complete":{"delay":0.05,"writes":[{"variable":"传感器状态_上位机[0].NO[11]","value":false},{"variable":"Robot_任务完成","value":6},{"variable":"Robot_Home","value":true}]},"reset_when":{"all":[{"variable":"Robot_任务写入完成","operator":"eq","value":false,"edge":"level"}]},"after_reset":{"delay":0,"writes":[{"variable":"Robot_任务完成","value":0},{"variable":"Robot_任务允许写入","value":true}]}
+    }
+  ]
+}

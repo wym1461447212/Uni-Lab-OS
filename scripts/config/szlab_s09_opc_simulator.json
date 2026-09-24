@@ -1,0 +1,95 @@
+{
+  "schema_version": 2,
+  "status": "runnable",
+  "name": "SZLab S09 pipetting OPC rules",
+  "opc": {"url": "opc.tcp://127.0.0.1:4840", "poll_interval": 0.05, "io_timeout": 2.0},
+  "variables": [
+    {"name":"S09允许加工","direction":"plc_to_pc","data_type":"bool","initial_value":true,"source":"manual"},
+    {"name":"S09工艺选择","direction":"pc_to_plc","data_type":"int","source":"action_node"},
+    {"name":"S09参数写入完成","direction":"pc_to_plc","data_type":"bool","source":"action_node"},
+    {"name":"S09工艺完成","direction":"plc_to_pc","data_type":"int","initial_value":0,"source":"action_node"},
+    {"name":"S09TIP盒工位编号","direction":"pc_to_plc","data_type":"int","source":"action_node"},
+    {"name":"S09TIP编号","direction":"pc_to_plc","data_type":"int","source":"action_node"},
+    {"name":"S09液体瓶编号","direction":"pc_to_plc","data_type":"int","source":"action_node"},
+    {"name":"S09抽液量","direction":"pc_to_plc","data_type":"float","source":"action_node"},
+    {"name":"S09放液量","direction":"pc_to_plc","data_type":"float","source":"action_node"},
+    {"name":"S09测密度次数","direction":"pc_to_plc","data_type":"int","source":"action_node"}
+  ],
+  "nodes": [
+    {
+      "workflow_node_id":"s09-process-5",
+      "task_template_ids":["szlab-main-process"],
+      "device_id":"szlab_mixer_pipetting_station",
+      "method":"s09_process_5",
+      "params":{},"channel":"s09",
+      "trigger":{"all":[
+        {"variable":"S09参数写入完成","operator":"eq","value":true,"edge":"rising"},
+        {"variable":"S09工艺选择","operator":"eq","value":5,"edge":"level"}
+      ]},
+      "on_trigger":{"writes":[{"variable":"S09工艺完成","value":0}]},
+      "on_complete":{"delay":0.05,"writes":[{"variable":"S09工艺完成","value":5}]},
+      "reset_when":{"all":[{"variable":"S09参数写入完成","operator":"eq","value":false,"edge":"level"}]},
+      "after_reset":{"delay":0,"writes":[]}
+    },
+    {
+      "workflow_node_id":"s09-process-6",
+      "task_template_ids":["szlab-main-process"],
+      "device_id":"szlab_mixer_pipetting_station",
+      "method":"s09_process_6",
+      "params":{},"channel":"s09",
+      "trigger":{"all":[
+        {"variable":"S09参数写入完成","operator":"eq","value":true,"edge":"rising"},
+        {"variable":"S09工艺选择","operator":"eq","value":6,"edge":"level"}
+      ]},
+      "on_trigger":{"writes":[{"variable":"S09工艺完成","value":0}]},
+      "on_complete":{"delay":0.05,"writes":[{"variable":"S09工艺完成","value":6}]},
+      "reset_when":{"all":[{"variable":"S09参数写入完成","operator":"eq","value":false,"edge":"level"}]},
+      "after_reset":{"delay":0,"writes":[]}
+    },
+    {
+      "workflow_node_id":"s09-process-7",
+      "task_template_ids":["szlab-main-process"],
+      "device_id":"szlab_mixer_pipetting_station",
+      "method":"s09_process_7",
+      "params":{},"channel":"s09",
+      "trigger":{"all":[
+        {"variable":"S09参数写入完成","operator":"eq","value":true,"edge":"rising"},
+        {"variable":"S09工艺选择","operator":"eq","value":7,"edge":"level"}
+      ]},
+      "on_trigger":{"writes":[{"variable":"S09工艺完成","value":0}]},
+      "on_complete":{"delay":0.05,"writes":[{"variable":"S09工艺完成","value":7}]},
+      "reset_when":{"all":[{"variable":"S09参数写入完成","operator":"eq","value":false,"edge":"level"}]},
+      "after_reset":{"delay":0,"writes":[]}
+    },
+    {
+      "workflow_node_id":"s09-process-8",
+      "task_template_ids":["szlab-main-process"],
+      "device_id":"szlab_mixer_pipetting_station",
+      "method":"s09_process_8",
+      "params":{},"channel":"s09",
+      "trigger":{"all":[
+        {"variable":"S09参数写入完成","operator":"eq","value":true,"edge":"rising"},
+        {"variable":"S09工艺选择","operator":"eq","value":8,"edge":"level"}
+      ]},
+      "on_trigger":{"writes":[{"variable":"S09工艺完成","value":0}]},
+      "on_complete":{"delay":0.05,"writes":[{"variable":"S09工艺完成","value":8}]},
+      "reset_when":{"all":[{"variable":"S09参数写入完成","operator":"eq","value":false,"edge":"level"}]},
+      "after_reset":{"delay":0,"writes":[]}
+    },
+    {
+      "workflow_node_id":"s09-process-9",
+      "task_template_ids":["szlab-main-process"],
+      "device_id":"szlab_mixer_pipetting_station",
+      "method":"s09_process_9",
+      "params":{},"channel":"s09",
+      "trigger":{"all":[
+        {"variable":"S09参数写入完成","operator":"eq","value":true,"edge":"rising"},
+        {"variable":"S09工艺选择","operator":"eq","value":9,"edge":"level"}
+      ]},
+      "on_trigger":{"writes":[{"variable":"S09工艺完成","value":0}]},
+      "on_complete":{"delay":0.05,"writes":[{"variable":"S09工艺完成","value":9}]},
+      "reset_when":{"all":[{"variable":"S09参数写入完成","operator":"eq","value":false,"edge":"level"}]},
+      "after_reset":{"delay":0,"writes":[]}
+    }
+  ]
+}

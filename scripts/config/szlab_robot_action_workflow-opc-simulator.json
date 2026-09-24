@@ -1,23 +1,55 @@
 {
   "schema_version": 2,
-  "status": "draft",
+  "status": "runnable",
   "name": "szlab_robot_action_workflow OPC Simulator",
   "opc": {
     "url": "opc.tcp://192.168.1.10:4840",
     "poll_interval": 0.2,
     "io_timeout": 2.0
   },
+  "includes": ["szlab_task_opc_simulator.json", "szlab_tip_box_opc_simulator.json", "szlab_s09_opc_simulator.json", "szlab_station_opc_simulator.json"],
+  "s03_slots": [
+    {"position": "1-1", "sensor": "传感器状态_上位机[0].NO[6]", "product_type": 1, "initial_value": true},
+    {"position": "1-2", "sensor": "传感器状态_上位机[0].NO[7]", "product_type": 1, "initial_value": false},
+    {"position": "1-3", "sensor": "传感器状态_上位机[0].NO[8]", "product_type": 1, "initial_value": false},
+    {"position": "1-4", "sensor": "传感器状态_上位机[0].NO[9]", "product_type": 1, "initial_value": false},
+    {"position": "1-5", "sensor": "传感器状态_上位机[0].NO[10]", "product_type": 1, "initial_value": false},
+    {"position": "1-6", "sensor": "传感器状态_上位机[0].NO[11]", "product_type": 1, "initial_value": false},
+    {"position": "2-1", "sensor": "传感器状态_上位机[0].NO[12]", "product_type": 1, "initial_value": false},
+    {"position": "2-2", "sensor": "传感器状态_上位机[0].NO[13]", "product_type": 1, "initial_value": false},
+    {"position": "2-3", "sensor": "传感器状态_上位机[0].NO[14]", "product_type": 1, "initial_value": false},
+    {"position": "2-4", "sensor": "传感器状态_上位机[0].NO[15]", "product_type": 1, "initial_value": false},
+    {"position": "2-5", "sensor": "传感器状态_上位机[1].NO[0]", "product_type": 1, "initial_value": false},
+    {"position": "2-6", "sensor": "传感器状态_上位机[1].NO[1]", "product_type": 1, "initial_value": false},
+    {"position": "3-1", "sensor": "传感器状态_上位机[1].NO[2]", "product_type": 1, "initial_value": false},
+    {"position": "3-2", "sensor": "传感器状态_上位机[1].NO[3]", "product_type": 1, "initial_value": false},
+    {"position": "3-3", "sensor": "传感器状态_上位机[1].NO[4]", "product_type": 1, "initial_value": false},
+    {"position": "3-4", "sensor": "传感器状态_上位机[1].NO[5]", "product_type": 1, "initial_value": false},
+    {"position": "3-5", "sensor": "传感器状态_上位机[1].NO[6]", "product_type": 1, "initial_value": false},
+    {"position": "3-6", "sensor": "传感器状态_上位机[1].NO[7]", "product_type": 1, "initial_value": false}
+  ],
+  "robot_tasks": [
+    {"method":"submit_place_to_s04","task_number":7},
+    {"method":"submit_pick_from_s04","task_number":8},
+    {"method":"submit_place_to_s05","task_number":9},
+    {"method":"submit_pick_from_s05","task_number":10},
+    {"method":"submit_pick_from_s06","task_number":12},
+    {"method":"submit_place_to_s08","task_number":17},
+    {"method":"submit_pick_from_s08","task_number":18},
+    {"method":"submit_place_to_s11","task_number":23},
+    {"method":"submit_pour_from_s08","task_number":25}
+  ],
   "variables": [
     {
       "name": "S03取放料产品",
       "direction": "pc_to_plc",
-      "data_type": "bool",
+      "data_type": "int",
       "source": "action_node"
     },
     {
       "name": "S03取放料编号",
       "direction": "pc_to_plc",
-      "data_type": "bool",
+      "data_type": "int",
       "source": "action_node"
     },
     {
@@ -64,14 +96,14 @@
       "direction": "plc_to_pc",
       "data_type": "bool",
       "source": "action_node",
-      "initial_value": false
+      "initial_value": true
     },
     {
       "name": "S07允许加工",
       "direction": "plc_to_pc",
       "data_type": "bool",
       "source": "action_node",
-      "initial_value": false
+      "initial_value": true
     },
     {
       "name": "S07工艺选择",
@@ -118,34 +150,217 @@
       "direction": "plc_to_pc",
       "data_type": "bool",
       "source": "action_sensor",
+      "initial_value": true
+    },
+    {
+      "name": "传感器状态_上位机[0].NO[1]",
+      "direction": "plc_to_pc",
+      "data_type": "bool",
+      "source": "action_sensor",
+      "initial_value": true
+    },
+    {
+      "name": "传感器状态_上位机[2].NO[10]",
+      "direction": "plc_to_pc",
+      "data_type": "bool",
+      "source": "action_sensor",
       "initial_value": false
+    },
+    {
+      "name": "S09原点信号_1",
+      "direction": "plc_to_pc",
+      "data_type": "bool",
+      "source": "manual",
+      "initial_value": true
+    },
+    {
+      "name": "S09原点信号_2",
+      "direction": "plc_to_pc",
+      "data_type": "bool",
+      "source": "manual",
+      "initial_value": true
+    },
+    {
+      "name": "S09原点信号_3",
+      "direction": "plc_to_pc",
+      "data_type": "bool",
+      "source": "manual",
+      "initial_value": true
+    },
+    {
+      "name": "S09原点信号_4",
+      "direction": "plc_to_pc",
+      "data_type": "bool",
+      "source": "manual",
+      "initial_value": true
+    },
+    {
+      "name": "工站状态[8]",
+      "direction": "plc_to_pc",
+      "data_type": "int",
+      "source": "manual",
+      "initial_value": 2
+    },
+    {
+      "name": "S09天平读数稳定",
+      "direction": "plc_to_pc",
+      "data_type": "bool",
+      "source": "manual",
+      "initial_value": true
+    },
+    {
+      "name": "S09天平读数",
+      "direction": "plc_to_pc",
+      "data_type": "float",
+      "source": "manual",
+      "initial_value": 1.0
+    },
+    {
+      "name": "传感器状态_上位机[4].NO[5]",
+      "direction": "plc_to_pc",
+      "data_type": "bool",
+      "source": "action_sensor",
+      "initial_value": true
+    },
+    {
+      "name": "传感器状态_上位机[4].NO[6]",
+      "direction": "plc_to_pc",
+      "data_type": "bool",
+      "source": "action_sensor",
+      "initial_value": true
+    },
+    {
+      "name": "传感器状态_上位机[4].NO[7]",
+      "direction": "plc_to_pc",
+      "data_type": "bool",
+      "source": "action_sensor",
+      "initial_value": true
+    },
+    {
+      "name": "传感器状态_上位机[3].NO[0]",
+      "direction": "plc_to_pc",
+      "data_type": "bool",
+      "source": "action_sensor",
+      "initial_value": false
+    },
+    {
+      "name": "传感器状态_上位机[1].NO[8]",
+      "direction": "plc_to_pc",
+      "data_type": "bool",
+      "source": "action_sensor",
+      "initial_value": true
     }
   ],
   "nodes": [
     {
-      "workflow_node_id": "node_001_pick_from_s03",
-      "task_template_ids": [
-        "szlab-e2e-s07"
-      ],
+      "workflow_node_id": "s03-pick-sample-vial-1-1",
+      "task_template_ids": ["szlab-s03-robot"],
       "device_id": "szlab_mixer_robot",
       "method": "submit_pick_from_s03",
-      "params": {
-        "product_type": 1,
-        "position": "1-1"
-      },
-      "channel": "",
-      "trigger": {
-        "all": []
-      },
-      "on_trigger": {
-        "writes": []
-      },
-      "on_complete": {
-        "writes": [],
-        "delay": 0.5
-      },
-      "reset_when": null,
-      "after_reset": null
+      "params": {"product_type": 2, "position": "1-1"},
+      "channel": "robot",
+      "trigger": {"all": [
+        {"variable": "Robot_任务写入完成", "operator": "eq", "value": true, "edge": "rising"},
+        {"variable": "任务号", "operator": "eq", "value": 6, "edge": "level"},
+        {"variable": "S03取放料产品", "operator": "eq", "value": 2, "edge": "level"},
+        {"variable": "S03取放料编号", "operator": "eq", "value": 1, "edge": "level"}
+      ]},
+      "on_trigger": {"writes": [
+        {"variable": "Robot_Home", "value": false},
+        {"variable": "Robot_任务允许写入", "value": false},
+        {"variable": "Robot_任务完成", "value": 0}
+      ]},
+      "on_complete": {"delay": 0.05, "writes": [
+        {"variable": "传感器状态_上位机[1].NO[8]", "value": false},
+        {"variable": "Robot_任务完成", "value": 6},
+        {"variable": "Robot_Home", "value": true}
+      ]},
+      "reset_when": {"all": [
+        {"variable": "Robot_任务写入完成", "operator": "eq", "value": false, "edge": "level"}
+      ]},
+      "after_reset": {"delay": 0, "writes": [
+        {"variable": "Robot_任务允许写入", "value": true}
+      ]}
+    },
+    {
+      "workflow_node_id": "robot-submit_place_to_s04",
+      "task_template_ids": ["szlab-main-process"],
+      "device_id": "szlab_mixer_robot",
+      "method": "submit_place_to_s04",
+      "params": {},
+      "channel": "robot",
+      "trigger": {"all": [
+        {"variable": "Robot_任务写入完成", "operator": "eq", "value": true, "edge": "rising"},
+        {"variable": "任务号", "operator": "eq", "value": 7, "edge": "level"}
+      ]},
+      "on_trigger": {"writes": [{"variable": "Robot_任务完成", "value": 0}]},
+      "on_complete": {"delay": 0.05, "writes": [
+        {"variable": "传感器状态_上位机[2].NO[10]", "value": true},
+        {"variable": "Robot_任务完成", "value": 7},
+        {"variable": "Robot_Home", "value": true}
+      ]},
+      "reset_when": {"all": [{"variable": "Robot_任务写入完成", "operator": "eq", "value": false, "edge": "level"}]},
+      "after_reset": {"delay": 0, "writes": [{"variable": "Robot_任务允许写入", "value": true}]}
+    },
+    {
+      "workflow_node_id": "robot-submit_place_to_s05",
+      "task_template_ids": ["szlab-main-process"],
+      "device_id": "szlab_mixer_robot",
+      "method": "submit_place_to_s05",
+      "params": {},
+      "channel": "robot",
+      "trigger": {"all": [
+        {"variable": "Robot_任务写入完成", "operator": "eq", "value": true, "edge": "rising"},
+        {"variable": "任务号", "operator": "eq", "value": 9, "edge": "level"}
+      ]},
+      "on_trigger": {"writes": [{"variable": "Robot_任务完成", "value": 0}]},
+      "on_complete": {"delay": 0.05, "writes": [
+        {"variable": "传感器状态_上位机[3].NO[0]", "value": true},
+        {"variable": "Robot_任务完成", "value": 9},
+        {"variable": "Robot_Home", "value": true}
+      ]},
+      "reset_when": {"all": [{"variable": "Robot_任务写入完成", "operator": "eq", "value": false, "edge": "level"}]},
+      "after_reset": {"delay": 0, "writes": [{"variable": "Robot_任务允许写入", "value": true}]}
+    },
+    {
+      "workflow_node_id": "robot-submit_pick_from_s05",
+      "task_template_ids": ["szlab-main-process"],
+      "device_id": "szlab_mixer_robot",
+      "method": "submit_pick_from_s05",
+      "params": {},
+      "channel": "robot",
+      "trigger": {"all": [
+        {"variable": "Robot_任务写入完成", "operator": "eq", "value": true, "edge": "rising"},
+        {"variable": "任务号", "operator": "eq", "value": 10, "edge": "level"}
+      ]},
+      "on_trigger": {"writes": [{"variable": "Robot_任务完成", "value": 0}]},
+      "on_complete": {"delay": 0.05, "writes": [
+        {"variable": "传感器状态_上位机[3].NO[0]", "value": false},
+        {"variable": "Robot_任务完成", "value": 10},
+        {"variable": "Robot_Home", "value": true}
+      ]},
+      "reset_when": {"all": [{"variable": "Robot_任务写入完成", "operator": "eq", "value": false, "edge": "level"}]},
+      "after_reset": {"delay": 0, "writes": [{"variable": "Robot_任务允许写入", "value": true}]}
+    },
+    {
+      "workflow_node_id": "node_005_place_to_s06",
+      "task_template_ids": ["szlab-main-process"],
+      "device_id": "szlab_mixer_robot",
+      "method": "submit_place_to_s06",
+      "params": {},
+      "channel": "robot",
+      "trigger": {"all": [
+        {"variable": "Robot_任务写入完成", "operator": "eq", "value": true, "edge": "rising"},
+        {"variable": "任务号", "operator": "eq", "value": 11, "edge": "level"}
+      ]},
+      "on_trigger": {"writes": [{"variable": "Robot_任务完成", "value": 0}]},
+      "on_complete": {"delay": 0.05, "writes": [
+        {"variable": "传感器状态_上位机[3].NO[1]", "value": true},
+        {"variable": "Robot_任务完成", "value": 11},
+        {"variable": "Robot_Home", "value": true}
+      ]},
+      "reset_when": {"all": [{"variable": "Robot_任务写入完成", "operator": "eq", "value": false, "edge": "level"}]},
+      "after_reset": {"delay": 0, "writes": [{"variable": "Robot_任务允许写入", "value": true}]}
     },
     {
       "workflow_node_id": "node_002_place_to_s072",
@@ -158,19 +373,28 @@
         "product_type": 2,
         "position": 1
       },
-      "channel": "",
-      "trigger": {
-        "all": []
-      },
+      "channel": "robot",
+      "trigger": {"all": [
+        {"variable": "Robot_任务写入完成", "operator": "eq", "value": true, "edge": "rising"},
+        {"variable": "任务号", "operator": "eq", "value": 15, "edge": "level"}
+      ]},
       "on_trigger": {
-        "writes": []
+        "writes": [
+          {"variable": "Robot_Home", "value": false},
+          {"variable": "Robot_任务允许写入", "value": false},
+          {"variable": "Robot_任务完成", "value": 0}
+        ]
       },
       "on_complete": {
-        "writes": [],
-        "delay": 0.5
+        "writes": [
+          {"variable": "Robot_任务完成", "value": 15},
+          {"variable": "Robot_Home", "value": true},
+          {"variable": "Robot_任务允许写入", "value": true}
+        ],
+        "delay": 0.1
       },
-      "reset_when": null,
-      "after_reset": null
+      "reset_when": {"all": [{"variable": "Robot_任务写入完成", "operator": "eq", "value": false, "edge": "level"}]},
+      "after_reset": {"delay": 0, "writes": [{"variable": "S07工艺完成", "value": 0}]}
     },
     {
       "workflow_node_id": "node_003_dose_powder",
@@ -187,19 +411,38 @@
         "params_json": null,
         "recipe_name": "default"
       },
-      "channel": "",
-      "trigger": {
-        "all": []
-      },
+      "channel": "s07",
+      "trigger": {"all": [
+        {"variable": "S07参数写入完成", "operator": "eq", "value": true, "edge": "rising"},
+        {"variable": "S07工艺选择", "operator": "eq", "value": 3, "edge": "level"}
+      ]},
       "on_trigger": {
-        "writes": []
+        "writes": [{"variable": "S07工艺完成", "value": 0}]
       },
       "on_complete": {
-        "writes": [],
-        "delay": 0.5
+        "writes": [{"variable": "S07工艺完成", "value": 3}],
+        "delay": 0.1
       },
-      "reset_when": null,
-      "after_reset": null
+      "reset_when": {"all": [{"variable": "S07参数写入完成", "operator": "eq", "value": false, "edge": "level"}]},
+      "after_reset": {"delay": 0, "writes": [{"variable": "S07工艺完成", "value": 0}]}
+    },
+    {
+      "workflow_node_id": "node_004_rotate_powder_cartridge_to_feed",
+      "task_template_ids": [
+        "szlab-main-process"
+      ],
+      "device_id": "szlab_s07_solid_addition",
+      "method": "rotate_powder_cartridge_to_feed",
+      "params": {},
+      "channel": "s07",
+      "trigger": {"all": [
+        {"variable": "S07参数写入完成", "operator": "eq", "value": true, "edge": "rising"},
+        {"variable": "S07工艺选择", "operator": "eq", "value": 2, "edge": "level"}
+      ]},
+      "on_trigger": {"writes": [{"variable": "S07工艺完成", "value": 0}]},
+      "on_complete": {"delay": 0.1, "writes": [{"variable": "S07工艺完成", "value": 2}]},
+      "reset_when": {"all": [{"variable": "S07参数写入完成", "operator": "eq", "value": false, "edge": "level"}]},
+      "after_reset": {"delay": 0, "writes": [{"variable": "S07工艺完成", "value": 0}]}
     }
   ]
 }

@@ -1,0 +1,37 @@
+{
+  "schema_version": 2,
+  "status": "runnable",
+  "name": "SZLab S04 S05 S08 station OPC rules",
+  "opc": {"url": "opc.tcp://127.0.0.1:4840", "poll_interval": 0.05, "io_timeout": 2.0},
+  "variables": [
+    {"name":"S041准备信号","direction":"plc_to_pc","data_type":"bool","initial_value":true,"source":"manual"},
+    {"name":"S041磁搅状态","direction":"plc_to_pc","data_type":"int","initial_value":1,"source":"manual"},
+    {"name":"S041允许加工","direction":"plc_to_pc","data_type":"bool","initial_value":true,"source":"manual"},
+    {"name":"S041磁搅工艺选择","direction":"pc_to_plc","data_type":"int","source":"action_node"},
+    {"name":"S041参数写入完成","direction":"pc_to_plc","data_type":"bool","source":"action_node"},
+    {"name":"S041加工完成","direction":"plc_to_pc","data_type":"bool","initial_value":false,"source":"action_node"},
+    {"name":"S05准备信号","direction":"plc_to_pc","data_type":"bool","initial_value":true,"source":"manual"},
+    {"name":"S05拍照结果","direction":"plc_to_pc","data_type":"int","initial_value":1,"source":"manual"},
+    {"name":"S05加工完成","direction":"plc_to_pc","data_type":"bool","initial_value":true,"source":"manual"},
+    {"name":"传感器状态_上位机[3].NO[0]","direction":"plc_to_pc","data_type":"bool","initial_value":true,"source":"manual"},
+    {"name":"S08原点信号","direction":"plc_to_pc","data_type":"bool","initial_value":true,"source":"manual"},
+    {"name":"S08允许加工","direction":"plc_to_pc","data_type":"bool","initial_value":true,"source":"manual"},
+    {"name":"工站状态[7]","direction":"plc_to_pc","data_type":"int","initial_value":2,"source":"manual"},
+    {"name":"S08工艺选择","direction":"pc_to_plc","data_type":"int","source":"action_node"},
+    {"name":"S08参数写入完成","direction":"pc_to_plc","data_type":"bool","source":"action_node"},
+    {"name":"S08工艺完成","direction":"plc_to_pc","data_type":"int","initial_value":0,"source":"action_node"},
+    {"name":"S082瓶盖暂存位","direction":"pc_to_plc","data_type":"int","source":"action_node"},
+    {"name":"传感器状态_上位机[3].NO[14]","direction":"plc_to_pc","data_type":"bool","initial_value":true,"source":"manual"},
+    {"name":"传感器状态_上位机[3].NO[15]","direction":"plc_to_pc","data_type":"bool","initial_value":true,"source":"manual"},
+    {"name":"传感器状态_上位机[4].NO[0]","direction":"plc_to_pc","data_type":"bool","initial_value":false,"source":"manual"},
+    {"name":"传感器状态_上位机[4].NO[1]","direction":"plc_to_pc","data_type":"bool","initial_value":false,"source":"manual"},
+    {"name":"传感器状态_上位机[4].NO[2]","direction":"plc_to_pc","data_type":"bool","initial_value":false,"source":"manual"},
+    {"name":"传感器状态_上位机[4].NO[3]","direction":"plc_to_pc","data_type":"bool","initial_value":false,"source":"manual"},
+    {"name":"传感器状态_上位机[4].NO[4]","direction":"plc_to_pc","data_type":"bool","initial_value":false,"source":"manual"}
+  ],
+  "nodes": [
+    {"workflow_node_id":"s04-stir","task_template_ids":["szlab-main-process"],"device_id":"szlab_s04_magnetic_stirring","method":"run_stirring","params":{},"channel":"s04","trigger":{"all":[{"variable":"S041参数写入完成","operator":"eq","value":true,"edge":"rising"}]},"on_trigger":{"writes":[{"variable":"S041加工完成","value":false}]},"on_complete":{"delay":0.1,"writes":[{"variable":"S041加工完成","value":true}]},"reset_when":{"all":[{"variable":"S041参数写入完成","operator":"eq","value":false,"edge":"level"}]},"after_reset":{"delay":0,"writes":[]}},
+    {"workflow_node_id":"s08-process-3","task_template_ids":["szlab-main-process"],"device_id":"szlab_s08_cap_station","method":"process_cap","params":{},"channel":"s08","trigger":{"all":[{"variable":"S08参数写入完成","operator":"eq","value":true,"edge":"rising"},{"variable":"S08工艺选择","operator":"eq","value":3,"edge":"level"}]},"on_trigger":{"writes":[{"variable":"S08工艺完成","value":0}]},"on_complete":{"delay":0.1,"writes":[{"variable":"S08工艺完成","value":3},{"variable":"传感器状态_上位机[4].NO[2]","value":true}]},"reset_when":{"all":[{"variable":"S08参数写入完成","operator":"eq","value":false,"edge":"level"}]},"after_reset":{"delay":0,"writes":[{"variable":"S08工艺完成","value":0}]}},
+    {"workflow_node_id":"s08-process-4","task_template_ids":["szlab-main-process"],"device_id":"szlab_s08_cap_station","method":"process_cap","params":{},"channel":"s08","trigger":{"all":[{"variable":"S08参数写入完成","operator":"eq","value":true,"edge":"rising"},{"variable":"S08工艺选择","operator":"eq","value":4,"edge":"level"}]},"on_trigger":{"writes":[{"variable":"S08工艺完成","value":0}]},"on_complete":{"delay":0.1,"writes":[{"variable":"S08工艺完成","value":4},{"variable":"传感器状态_上位机[4].NO[2]","value":false}]},"reset_when":{"all":[{"variable":"S08参数写入完成","operator":"eq","value":false,"edge":"level"}]},"after_reset":{"delay":0,"writes":[{"variable":"S08工艺完成","value":0}]}}
+  ]
+}

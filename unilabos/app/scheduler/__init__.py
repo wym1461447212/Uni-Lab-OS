@@ -10,6 +10,7 @@ from .models import (
     WorkflowState,
     spec_from_dict,
 )
+from .inventory import MaterialSwitchRequired
 from .ordering import OrderingContext, StableLocalOrderer
 from .szlab_workflow_adapter import (
     load_szlab_workflow_spec,
@@ -19,17 +20,20 @@ from .service import (
     TIP_BOX_CHANGE_ACTIONS,
     EdgeScheduler,
     build_tip_box_change_workflow,
+    build_liquid_bottle_switch_workflow,
 )
 
 __all__ = [
     "DispatchedJob",
     "EdgeScheduler",
     "MaterialRequirement",
+    "MaterialSwitchRequired",
     "OrderingContext",
     "ReadyTask",
     "StableLocalOrderer",
     "TIP_BOX_CHANGE_ACTIONS",
     "build_tip_box_change_workflow",
+    "build_liquid_bottle_switch_workflow",
     "WorkflowEdge",
     "WorkflowNode",
     "WorkflowSpec",
