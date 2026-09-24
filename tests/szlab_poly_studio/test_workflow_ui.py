@@ -1633,7 +1633,8 @@ def test_pump_runtime_only_exposes_pump_actions():
 
     actions = _runtime_supported_actions(preset, runtime_config)
 
-    assert actions == {}
+    assert set(actions) == {"transfer_liquid", "run_solvent_addition"}
+    assert {action.device_id for action in actions.values()} == {"szlab_mixer_pump"}
     assert "run_stirring" not in actions
 
 
