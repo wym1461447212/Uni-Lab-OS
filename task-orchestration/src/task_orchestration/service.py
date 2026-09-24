@@ -407,6 +407,7 @@ class WorkspaceService:
         sample_ids: list[str],
         *,
         sample_start_interval_seconds: float = 0,
+        priority: str = "normal",
         template_node_parameters: dict[str, dict[str, dict[str, Any]]] | None = None,
         sample_template_node_parameters: dict[
             str, dict[str, dict[str, dict[str, Any]]]
@@ -475,8 +476,13 @@ class WorkspaceService:
                             order=next_order,
                             not_before=sample_not_before,
                             payload={
-                                "node_parameters": instance_parameters
-                            } if instance_parameters else {},
+                                "priority": priority,
+                                **(
+                                    {"node_parameters": instance_parameters}
+                                    if instance_parameters
+                                    else {}
+                                ),
+                            },
                         )
                     )
                     next_order += 1

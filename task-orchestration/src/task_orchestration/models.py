@@ -596,6 +596,7 @@ class GenerateInstancesRequest(StrictModel):
     template_ids: list[str] = Field(min_length=1)
     sample_ids: list[str] = Field(min_length=1)
     sample_start_interval_seconds: float = Field(default=0, ge=0, le=86_400)
+    priority: Literal["urgent", "high", "normal", "low"] = "normal"
     template_node_parameters: dict[str, dict[str, dict[str, Any]]] = Field(
         default_factory=dict
     )

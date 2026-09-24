@@ -180,6 +180,7 @@ def create_router(store: WorkspaceStore, service: WorkspaceService | None = None
                 request.template_ids,
                 request.sample_ids,
                 sample_start_interval_seconds=request.sample_start_interval_seconds,
+                priority=request.priority,
                 template_node_parameters=request.template_node_parameters,
                 sample_template_node_parameters=request.sample_template_node_parameters,
             ))
