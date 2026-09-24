@@ -613,7 +613,8 @@ def load_simulator_profile(
             include_payload = json.loads(include_path.read_text(encoding="utf-8"))
             for item in include_payload.get("variables", []):
                 if isinstance(item, dict) and item.get("name") not in variable_names:
-                    variables.append(item); variable_names.add(item.get("name"))
+                    variables.append(item)
+                    variable_names.add(item.get("name"))
             for item in include_payload.get("nodes", []):
                 # A full profile can replace the legacy single-position S03
                 # node with its position-aware ``s03_slots`` expansion.
@@ -624,7 +625,8 @@ def load_simulator_profile(
                 ):
                     continue
                 if isinstance(item, dict) and item.get("workflow_node_id") not in node_ids:
-                    nodes.append(item); node_ids.add(item.get("workflow_node_id"))
+                    nodes.append(item)
+                    node_ids.add(item.get("workflow_node_id"))
         merged["variables"] = variables
         merged["nodes"] = nodes
         merged.pop("includes", None)

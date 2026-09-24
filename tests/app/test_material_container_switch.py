@@ -22,6 +22,8 @@ def test_liquid_bottle_switch_is_s09_s10_serial_robot_workflow():
     assert spec.nodes[0].param == {"product_type": 2, "position": 1}
     assert spec.nodes[2].param == {"position": 3}
     assert len(spec.edges) == 3
+
+
 from unilabos.app.scheduler.dispatch import RecordingDispatcher
 from unilabos.app.scheduler.inventory import InventoryService, InventoryStore
 
