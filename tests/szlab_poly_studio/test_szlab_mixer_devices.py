@@ -2711,6 +2711,10 @@ def test_szlab_mixer_preset_loads_own_runtime_config():
         "szlab_mixer_stirrer": "unilabos.devices.workstation.szlab_poly_studio.s04_magnetic_stirring.magnetic_stirring.SzlabMixerMagneticStirrerDevice",
         "szlab_mixer_photoshotting": "unilabos.devices.workstation.szlab_poly_studio.s05_photoshotting.photoshotting.SzlabMixerPhotoShottingDevice",
         "szlab_mixer_robot": "unilabos.devices.workstation.szlab_poly_studio.s12_robot.robot.SzlabMixerRobotDevice",
+        "szlab_mixer_pump": "unilabos.devices.workstation.szlab_poly_studio.s06_pump.pump.SzlabMixerPumpDevice",
+        "szlab_mixer_pipetting_station": "unilabos.devices.workstation.szlab_poly_studio.s09_pipetting_station.pipetting_station.SzlabMixerPipettingStationDevice",
+        "szlab_s07_solid_addition": "unilabos.devices.workstation.szlab_poly_studio.s07_solid_addition.s07.SZLabS07SolidAdditionDevice",
+        "szlab_s08_cap_station": "unilabos.devices.workstation.szlab_poly_studio.s08_decap.decap_s08_cap_station.SZLabS08CapStationDevice",
     }
     assert runtime_config.device_factory.plc_device_id == "szlab_poly_plc"
 
