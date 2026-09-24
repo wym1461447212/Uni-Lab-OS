@@ -15,6 +15,22 @@ from .models import (
 )
 
 
+_PRIORITY_ORDER = {
+    "urgent": 0,
+    "high": 1,
+    "normal": 2,
+    "low": 3,
+}
+
+
+def instance_priority_order(instance: TaskInstance) -> int:
+    """读取实例优先级；旧实例或非法值按普通优先级处理。"""
+    priority = instance.payload.get("priority", "normal")
+    if not isinstance(priority, str):
+        return _PRIORITY_ORDER["normal"]
+    return _PRIORITY_ORDER.get(priority, _PRIORITY_ORDER["normal"])
+
+
 def policy_resource_key(resource: str) -> str:
     """兼容策略接口的普通资源输入，并保留显式内部键。"""
     if resource.startswith((POLICY_RESOURCE_PREFIX, POLICY_WORKSTATION_PREFIX)):
@@ -43,7 +59,7 @@ class SchedulingPolicy(Protocol):
 
 
 class FifoResourcePolicy:
-    """按 order、sample、instance id 排序的资源互斥 FIFO 策略。
+    """按优先级、order、sample、instance id 排序的资源互斥策略。
 
     此策略只产生纯决策，不会变更实例状态或占用资源。调用方必须在同一
     workspace 锁内验证并应用该决策，确保选择与状态变更具备原子性。
@@ -67,7 +83,12 @@ class FifoResourcePolicy:
                 for instance in all_instances
                 if instance.id in satisfied_ids and instance.status == "pending"
             ),
-            key=lambda instance: (instance.order, instance.sample_id, instance.id),
+            key=lambda instance: (
+                instance_priority_order(instance),
+                instance.order,
+                instance.sample_id,
+                instance.id,
+            ),
         )
         startable_instance_ids: list[str] = []
         waiting_reasons: dict[str, WaitingReason] = {}

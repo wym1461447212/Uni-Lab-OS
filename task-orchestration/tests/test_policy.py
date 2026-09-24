@@ -32,6 +32,7 @@ def _instance(
     *,
     status: str = "pending",
     execution_state: dict | None = None,
+    priority: str | None = None,
 ) -> TaskInstance:
     timestamps = {}
     if status == "running":
@@ -44,6 +45,7 @@ def _instance(
         status=status,
         sample_id=sample_id,
         order=order,
+        payload={} if priority is None else {"priority": priority},
         execution_state=execution_state or {},
         **timestamps,
     )
@@ -165,6 +167,30 @@ def test_uses_order_sample_and_instance_id_as_stable_fifo_order():
     )
 
     assert result.startable_instance_ids == ["z-task", "a-task", "b-task"]
+    assert result.waiting_reasons == {}
+
+
+def test_uses_priority_before_fifo_order():
+    policy = FifoResourcePolicy()
+    templates = [_template("shared", ["robot"])]
+    instances = [
+        _instance("normal-task", "shared", "sample-a", 0, priority="normal"),
+        _instance("urgent-task", "shared", "sample-b", 1, priority="urgent"),
+        _instance("high-task", "shared", "sample-c", 2, priority="high"),
+    ]
+
+    result = policy.select(
+        templates,
+        instances,
+        available_resources={"robot"},
+        condition_satisfied_instance_ids={instance.id for instance in instances},
+    )
+
+    assert result.startable_instance_ids == [
+        "urgent-task",
+        "high-task",
+        "normal-task",
+    ]
     assert result.waiting_reasons == {}
 
 
