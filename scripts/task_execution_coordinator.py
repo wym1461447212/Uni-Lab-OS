@@ -56,6 +56,26 @@ from unilabos.devices.workstation.szlab_poly_studio.s12_robot.robot_tasks import
 logger = logging.getLogger(__name__)
 
 
+_TASK_PRIORITY_ORDER = {
+    "urgent": 0,
+    "high": 1,
+    "normal": 2,
+    "low": 3,
+}
+
+
+def _task_instance_dispatch_order(instance: Any) -> int:
+    """优先级优先，同优先级保持现有 FIFO 排序。"""
+    if not isinstance(instance, dict):
+        return _TASK_PRIORITY_ORDER["normal"]
+    payload = instance.get("payload")
+    priority = payload.get("priority") if isinstance(payload, dict) else None
+    return _TASK_PRIORITY_ORDER.get(
+        priority if isinstance(priority, str) else "normal",
+        _TASK_PRIORITY_ORDER["normal"],
+    )
+
+
 class TaskDispatchPreflightCode(StrEnum):
     """Task 派发前固定使用的结构化检查错误码。"""
 
@@ -1196,7 +1216,10 @@ class TaskExecutionCoordinator:
                 nodes_by_id=nodes_by_id,
             )
 
-            for instance in workspace.get("task_instances", []):
+            for instance in sorted(
+                workspace.get("task_instances", []),
+                key=_task_instance_dispatch_order,
+            ):
                 if not isinstance(instance, dict) or instance.get("status") != "running":
                     continue
                 template = templates.get(str(instance.get("template_id")))

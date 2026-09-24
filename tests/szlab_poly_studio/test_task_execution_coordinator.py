@@ -2771,8 +2771,10 @@ def test_same_device_instances_claim_only_one_action_per_cycle():
             **deepcopy(_workspace_response()["workspace"]["task_instances"][0]),
             "id": "instance-2",
             "template_id": "template-2",
+            "payload": {"priority": "urgent"},
         },
     ]
+    instances[0]["payload"] = {"priority": "low"}
     response = _workspace_response(
         instances=instances,
         node_ids=["custom-node-a"],
@@ -2826,7 +2828,8 @@ def test_same_device_instances_claim_only_one_action_per_cycle():
     assert len(client.claims) == 1
     assert all(claim["resources"] == [] for claim in client.claims)
     assert len(started) == 1
-    assert started[0] in {"custom-node-a", "custom-node-b"}
+    assert client.claims[0]["instance_id"] == "instance-2"
+    assert started[0] == "custom-node-b"
     release.set()
     coordinator.shutdown()
 
