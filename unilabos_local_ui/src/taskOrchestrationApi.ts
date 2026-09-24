@@ -45,6 +45,7 @@ export type ApiTaskInstance = {
   started_at: number | null;
   finished_at: number | null;
   payload?: {
+    priority?: 'urgent' | 'high' | 'normal' | 'low';
     node_parameters?: Record<string, Record<string, unknown>>;
   };
   execution_state?: {
@@ -384,6 +385,7 @@ export function createTaskOrchestrationClient(options: ClientOptions = {}) {
         string,
         Record<string, Record<string, Record<string, unknown>>>
       > = {},
+      priority: 'urgent' | 'high' | 'normal' | 'low' = 'normal',
     ) => (
       request('/instances:generate', body({
         workflow_path: workflowPath,
@@ -391,6 +393,7 @@ export function createTaskOrchestrationClient(options: ClientOptions = {}) {
         template_ids: templateIds,
         sample_ids: sampleIds,
         sample_start_interval_seconds: sampleStartIntervalSeconds,
+        priority,
         sample_template_node_parameters: sampleTemplateNodeParameters,
       }))
     ),

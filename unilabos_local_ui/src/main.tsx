@@ -40,7 +40,7 @@ import {
 import { createPseudoFlowJson } from './workflowExport';
 import { WorkstationDemo } from './WorkstationDemo';
 import './taskSchedulerBench.css';
-import { TaskSchedulerBench } from './TaskSchedulerBench';
+import { TaskSchedulerBench, type TaskPriority } from './TaskSchedulerBench';
 import { TaskSchedulerHeaderActions } from './TaskSchedulerBench';
 import { OpcSimulatorDialog } from './OpcSimulatorDialog';
 import { OpcProfileSpecDialog } from './OpcProfileSpecDialog';
@@ -907,6 +907,7 @@ function App() {
   const [taskOpcMessage, setTaskOpcMessage] = useState('');
   const [isTaskOpcConnecting, setIsTaskOpcConnecting] = useState(false);
   const [taskSampleCount, setTaskSampleCount] = useState(3);
+  const [taskPriority, setTaskPriority] = useState<TaskPriority>('normal');
   const [taskTestMemory, setTaskTestMemory] = useState<TaskTestMemory>(
     createEmptyTaskTestMemory,
   );
@@ -2276,6 +2277,7 @@ function App() {
           templateIds,
           parameterSchema,
         ),
+        taskPriority,
       );
     });
   }, [
@@ -2283,6 +2285,7 @@ function App() {
     nodes,
     taskSampleCount,
     taskSampleStartIntervalSeconds,
+    taskPriority,
     taskWorkspacePath,
   ]);
 
@@ -4109,6 +4112,7 @@ function App() {
             void openOpcSimulatorWorkbench();
           }}
           onSampleCountChange={updateTaskSampleCount}
+          onTaskPriorityChange={setTaskPriority}
           onSelectTask={(task) => {
             setSelectedTaskInstanceId(task.id);
             setSelectedTaskTemplateId(task.templateId);
@@ -4138,6 +4142,7 @@ function App() {
             ));
           }}
           sampleCount={taskSampleCount}
+          taskPriority={taskPriority}
           rememberedParameterCount={rememberedSampleTemplateCount(
             taskTestMemory,
             taskTemplates.map((template) => template.id),

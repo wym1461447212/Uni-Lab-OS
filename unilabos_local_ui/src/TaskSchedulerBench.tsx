@@ -162,6 +162,7 @@ type Props = {
   events: string[];
   waitingReasons: Record<string, { message?: string }>;
   sampleCount: number;
+  taskPriority: TaskPriority;
   rememberedParameterCount: number;
   isRunning: boolean;
   isTransitioning: boolean;
@@ -169,6 +170,7 @@ type Props = {
   environment: 'simulated' | 'real';
   selectedTaskId: string | null;
   onSampleCountChange: (value: number) => void;
+  onTaskPriorityChange: (value: TaskPriority) => void;
   onToggleTemplate: (templateId: string) => void;
   onSelectAllTemplates: (selected: boolean) => void;
   onGenerate: () => void;
@@ -211,6 +213,8 @@ type Props = {
   logError: string;
   actionNodes: ActionNode[];
 };
+
+export type TaskPriority = 'urgent' | 'high' | 'normal' | 'low';
 
 function stateLabel(status: string) {
   if (status === 'running') return '运行中';
@@ -507,6 +511,18 @@ export function TaskSchedulerBench(props: Props) {
           <div className="scheduler-bench__section">
             <label>样品数</label>
             <div className="scheduler-bench__sample-input"><input min="1" max="999" type="number" value={props.sampleCount} onChange={(event) => props.onSampleCountChange(Number(event.target.value))} /><button className="scheduler-btn scheduler-btn--primary" onClick={props.onGenerate} type="button">生成队列</button></div>
+            <label>
+              任务优先级
+              <select
+                value={props.taskPriority}
+                onChange={(event) => props.onTaskPriorityChange(event.target.value as TaskPriority)}
+              >
+                <option value="urgent">urgent（紧急）</option>
+                <option value="high">high（高）</option>
+                <option value="normal">normal（普通）</option>
+                <option value="low">low（低）</option>
+              </select>
+            </label>
             <div className="scheduler-bench__parameter-memory">
               <span>
                 {props.rememberedParameterCount
