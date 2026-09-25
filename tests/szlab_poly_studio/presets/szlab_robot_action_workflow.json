@@ -31,7 +31,7 @@
   "default_workflow_name": "szlab_robot_action_workflow",
   "default_config": {
     "graph": "__generated__",
-    "url": "opc.tcp://192.168.1.10:4840",
+    "url": "opc.tcp://127.0.0.1:4840",
     "csv": "szlab_plc_0810.csv",
     "task_sample_start_interval_seconds": 1,
     "no_subscription": true,
@@ -45,12 +45,6 @@
   "debug_config": {
     "skip_robot_precheck_variables": [
       "Robot_Home",
-      "传感器状态_上位机[0].NO[0]",
-      "传感器状态_上位机[0].NO[1]",
-      "传感器状态_上位机[0].NO[2]",
-      "传感器状态_上位机[0].NO[3]",
-      "传感器状态_上位机[0].NO[4]",
-      "传感器状态_上位机[0].NO[5]",
       "传感器状态_上位机[0].NO[6]",
       "传感器状态_上位机[0].NO[7]",
       "传感器状态_上位机[0].NO[8]",

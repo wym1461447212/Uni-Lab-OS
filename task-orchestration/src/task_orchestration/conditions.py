@@ -29,7 +29,7 @@ class OpcConditionProvider:
     def __init__(
         self,
         *,
-        snapshot_ttl_seconds: float = 30.0,
+        snapshot_ttl_seconds: float = 90.0,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         if snapshot_ttl_seconds < 0:
