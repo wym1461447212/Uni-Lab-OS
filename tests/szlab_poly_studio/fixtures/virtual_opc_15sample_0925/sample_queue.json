@@ -1,0 +1,4281 @@
+{
+  "description": "2026-09-25 虚拟 OPC 15 样品调试所用队列入参，不含执行记录。",
+  "workflow_path": "szlab_robot_action_workflow.json",
+  "workflow_file": "szlab_robot_action_workflow.json",
+  "sample_count": 15,
+  "instance_count": 255,
+  "templates": [
+    {
+      "id": "task_w_ae3c6440a875496887ddc9e1e3f988de",
+      "name": "S03 取容器 等 2 步",
+      "workflow_path": "szlab_robot_action_workflow.json",
+      "node_ids": [
+        "w01_pick_beaker_s03",
+        "w01_place_beaker_s072"
+      ],
+      "resources": [],
+      "input_triggers": [],
+      "output_triggers": [],
+      "dependencies": null
+    },
+    {
+      "id": "task_x_b8833e9573c14ef987962563f83491d7",
+      "name": "S07 注粉",
+      "workflow_path": "szlab_robot_action_workflow.json",
+      "node_ids": [
+        "w01_dose_powder_s07"
+      ],
+      "resources": [],
+      "input_triggers": [],
+      "output_triggers": [],
+      "dependencies": null
+    },
+    {
+      "id": "task_y_0ec9afcdcc1246e1a9dbc4caeb10865e",
+      "name": "S072 取料 等 2 步",
+      "workflow_path": "szlab_robot_action_workflow.json",
+      "node_ids": [
+        "w02_pick_beaker_s072",
+        "w02_place_beaker_s06"
+      ],
+      "resources": [],
+      "input_triggers": [],
+      "output_triggers": [],
+      "dependencies": null
+    },
+    {
+      "id": "task_z_9a599902d061465b8507f47145e13681",
+      "name": "S06 泵加液完整流程：烧杯检测 → 液位确认 → 写入工艺参数 → 等待加工完成",
+      "workflow_path": "szlab_robot_action_workflow.json",
+      "node_ids": [
+        "w02_add_solvent_s06"
+      ],
+      "resources": [],
+      "input_triggers": [],
+      "output_triggers": [],
+      "dependencies": null
+    },
+    {
+      "id": "task_10_252e5ac2de1e4070bf1a4ab4560361ad",
+      "name": "S06 取料 等 2 步",
+      "workflow_path": "szlab_robot_action_workflow.json",
+      "node_ids": [
+        "w03_pick_beaker_s06",
+        "w03_place_beaker_s09"
+      ],
+      "resources": [],
+      "input_triggers": [],
+      "output_triggers": [],
+      "dependencies": null
+    },
+    {
+      "id": "task_11_c23cf203e41b45aa9ef1e21946315663",
+      "name": "按配置复用或一次性使用 S09 加液 TIP",
+      "workflow_path": "szlab_robot_action_workflow.json",
+      "node_ids": [
+        "w03_add_liquid_s09"
+      ],
+      "resources": [],
+      "input_triggers": [],
+      "output_triggers": [],
+      "dependencies": null
+    },
+    {
+      "id": "task_12_ddf3487bcf334cd2883f57dd539e232f",
+      "name": "S09 取料 等 2 步",
+      "workflow_path": "szlab_robot_action_workflow.json",
+      "node_ids": [
+        "w04_pick_beaker_s09",
+        "w04_place_beaker_s04"
+      ],
+      "resources": [],
+      "input_triggers": [],
+      "output_triggers": [],
+      "dependencies": null
+    },
+    {
+      "id": "task_13_3913b0c1c62a401faeacea2f1431eeac",
+      "name": "执行 S04 磁搅加工",
+      "workflow_path": "szlab_robot_action_workflow.json",
+      "node_ids": [
+        "w04_run_stirring_s04"
+      ],
+      "resources": [],
+      "input_triggers": [],
+      "output_triggers": [],
+      "dependencies": null
+    },
+    {
+      "id": "task_14_17dc3803b96548348184ab74e5df2aa7",
+      "name": "S04 取料 等 2 步",
+      "workflow_path": "szlab_robot_action_workflow.json",
+      "node_ids": [
+        "w06_pick_beaker_s04",
+        "w06_place_beaker_s05"
+      ],
+      "resources": [],
+      "input_triggers": [
+        {
+          "kind": "opc",
+          "config": {
+            "plc_device_id": "szlab_poly_plc",
+            "variable": "传感器状态_上位机[3].NO[0]",
+            "value": false
+          }
+        }
+      ],
+      "output_triggers": [],
+      "dependencies": null
+    },
+    {
+      "id": "task_15_14ec48e0e0a243b3ae3a2f3fb5d5e9cf",
+      "name": "执行烧杯姿势拍照检测",
+      "workflow_path": "szlab_robot_action_workflow.json",
+      "node_ids": [
+        "w06_take_photo_s05"
+      ],
+      "resources": [],
+      "input_triggers": [],
+      "output_triggers": [],
+      "dependencies": null
+    },
+    {
+      "id": "task_16_5059b9d9471d46b79a37e38e49fc2068",
+      "name": "S05 取料 等 2 步",
+      "workflow_path": "szlab_robot_action_workflow.json",
+      "node_ids": [
+        "w06_pick_beaker_s05_for_density",
+        "w05_place_beaker_s09_for_density"
+      ],
+      "resources": [],
+      "input_triggers": [],
+      "output_triggers": [],
+      "dependencies": null
+    },
+    {
+      "id": "task_17_888c089cd83b4b0d9cda634e6657d296",
+      "name": "执行 S09 独立密度测量并自动管理一次性 TIP",
+      "workflow_path": "szlab_robot_action_workflow.json",
+      "node_ids": [
+        "w05_measure_density_s09"
+      ],
+      "resources": [],
+      "input_triggers": [],
+      "output_triggers": [],
+      "dependencies": null
+    },
+    {
+      "id": "task_18_cb50a0e35a694e48a13305ef829e14fd",
+      "name": "S03 取容器 等 2 步",
+      "workflow_path": "szlab_robot_action_workflow.json",
+      "node_ids": [
+        "w05_pick_sample_vial_s03",
+        "w05_place_sample_vial_s08"
+      ],
+      "resources": [],
+      "input_triggers": [],
+      "output_triggers": [],
+      "dependencies": [
+        {
+          "template_id": "task_16_5059b9d9471d46b79a37e38e49fc2068",
+          "node_id": null
+        }
+      ]
+    },
+    {
+      "id": "task_19_0480d4e88835496c9118fe8e14c3fdf4",
+      "name": "S08 开/关盖",
+      "workflow_path": "szlab_robot_action_workflow.json",
+      "node_ids": [
+        "w05_open_sample_vial_s08"
+      ],
+      "resources": [],
+      "input_triggers": [],
+      "output_triggers": [],
+      "dependencies": [
+        {
+          "template_id": "task_18_cb50a0e35a694e48a13305ef829e14fd",
+          "node_id": null
+        }
+      ]
+    },
+    {
+      "id": "task_1a_9245b2850e6844e2b8135ca645c220e5",
+      "name": "S09 取料 等 3 步",
+      "workflow_path": "szlab_robot_action_workflow.json",
+      "node_ids": [
+        "w06_pick_beaker_s09_after_density",
+        "w07_pour_beaker_s08",
+        "w07_place_beaker_s11"
+      ],
+      "resources": [],
+      "input_triggers": [],
+      "output_triggers": [],
+      "dependencies": null
+    },
+    {
+      "id": "task_1b_59510a4a4ba0414790d14cdb36293157",
+      "name": "S08 开/关盖",
+      "workflow_path": "szlab_robot_action_workflow.json",
+      "node_ids": [
+        "w07_close_sample_vial_s08"
+      ],
+      "resources": [],
+      "input_triggers": [],
+      "output_triggers": [],
+      "dependencies": null
+    },
+    {
+      "id": "task_1c_6b0c60b7fa3a4a39a6dda2f08df56ac2",
+      "name": "S08 取瓶 等 2 步",
+      "workflow_path": "szlab_robot_action_workflow.json",
+      "node_ids": [
+        "w07_pick_sample_vial_s08",
+        "w07_place_sample_vial_s11"
+      ],
+      "resources": [],
+      "input_triggers": [],
+      "output_triggers": [],
+      "dependencies": null
+    }
+  ],
+  "instances": [
+    {
+      "sample_id": "Sample A",
+      "order": 0,
+      "template_id": "task_w_ae3c6440a875496887ddc9e1e3f988de",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w01_pick_beaker_s03",
+        "w01_place_beaker_s072"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_pick_beaker_s03": {
+          "product_type": 1,
+          "position": "1-1"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample A",
+      "order": 1,
+      "template_id": "task_x_b8833e9573c14ef987962563f83491d7",
+      "template_name": "S07 注粉",
+      "node_ids": [
+        "w01_dose_powder_s07"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_dose_powder_s07": {
+          "coarse_position": 1,
+          "fine_position": 1,
+          "target_weight": 1.0,
+          "recipe_name": "default"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample A",
+      "order": 2,
+      "template_id": "task_y_0ec9afcdcc1246e1a9dbc4caeb10865e",
+      "template_name": "S072 取料 等 2 步",
+      "node_ids": [
+        "w02_pick_beaker_s072",
+        "w02_place_beaker_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample A",
+      "order": 3,
+      "template_id": "task_z_9a599902d061465b8507f47145e13681",
+      "template_name": "S06 泵加液完整流程：烧杯检测 → 液位确认 → 写入工艺参数 → 等待加工完成",
+      "node_ids": [
+        "w02_add_solvent_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample A",
+      "order": 4,
+      "template_id": "task_10_252e5ac2de1e4070bf1a4ab4560361ad",
+      "template_name": "S06 取料 等 2 步",
+      "node_ids": [
+        "w03_pick_beaker_s06",
+        "w03_place_beaker_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample A",
+      "order": 5,
+      "template_id": "task_11_c23cf203e41b45aa9ef1e21946315663",
+      "template_name": "按配置复用或一次性使用 S09 加液 TIP",
+      "node_ids": [
+        "w03_add_liquid_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w03_add_liquid_s09": {
+          "liquid_count": 1,
+          "liquid_additions": [
+            {
+              "liquid_station_index": 1,
+              "solvent_batch_id": "solvent-Sample-A",
+              "volume": 5000,
+              "reuse_tip": false
+            }
+          ],
+          "volume_unit": "raw",
+          "skip_level_check": false,
+          "initialize_tip_inventory": false,
+          "take_tip_box_index": 2,
+          "release_tip_box_index": 1
+        }
+      }
+    },
+    {
+      "sample_id": "Sample A",
+      "order": 6,
+      "template_id": "task_12_ddf3487bcf334cd2883f57dd539e232f",
+      "template_name": "S09 取料 等 2 步",
+      "node_ids": [
+        "w04_pick_beaker_s09",
+        "w04_place_beaker_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_place_beaker_s04": {
+          "position": 1,
+          "sample_id": "Sample A"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample A",
+      "order": 7,
+      "template_id": "task_13_3913b0c1c62a401faeacea2f1431eeac",
+      "template_name": "执行 S04 磁搅加工",
+      "node_ids": [
+        "w04_run_stirring_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_run_stirring_s04": {
+          "position": 1,
+          "duration": 5.0
+        }
+      }
+    },
+    {
+      "sample_id": "Sample A",
+      "order": 8,
+      "template_id": "task_14_17dc3803b96548348184ab74e5df2aa7",
+      "template_name": "S04 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s04",
+        "w06_place_beaker_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w06_pick_beaker_s04": {
+          "position": 1
+        }
+      }
+    },
+    {
+      "sample_id": "Sample A",
+      "order": 9,
+      "template_id": "task_15_14ec48e0e0a243b3ae3a2f3fb5d5e9cf",
+      "template_name": "执行烧杯姿势拍照检测",
+      "node_ids": [
+        "w06_take_photo_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample A",
+      "order": 10,
+      "template_id": "task_16_5059b9d9471d46b79a37e38e49fc2068",
+      "template_name": "S05 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s05_for_density",
+        "w05_place_beaker_s09_for_density"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample A",
+      "order": 11,
+      "template_id": "task_17_888c089cd83b4b0d9cda634e6657d296",
+      "template_name": "执行 S09 独立密度测量并自动管理一次性 TIP",
+      "node_ids": [
+        "w05_measure_density_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample A",
+      "order": 12,
+      "template_id": "task_18_cb50a0e35a694e48a13305ef829e14fd",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w05_pick_sample_vial_s03",
+        "w05_place_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_pick_sample_vial_s03": {
+          "product_type": 2,
+          "position": "1-1"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample A",
+      "order": 13,
+      "template_id": "task_19_0480d4e88835496c9118fe8e14c3fdf4",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w05_open_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_open_sample_vial_s08": {
+          "工艺选择": 3,
+          "样品ID": [
+            101
+          ],
+          "瓶盖暂存位": 1
+        }
+      }
+    },
+    {
+      "sample_id": "Sample A",
+      "order": 14,
+      "template_id": "task_1a_9245b2850e6844e2b8135ca645c220e5",
+      "template_name": "S09 取料 等 3 步",
+      "node_ids": [
+        "w06_pick_beaker_s09_after_density",
+        "w07_pour_beaker_s08",
+        "w07_place_beaker_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_beaker_s11": {
+          "product_type": 1,
+          "position": "1-1"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample A",
+      "order": 15,
+      "template_id": "task_1b_59510a4a4ba0414790d14cdb36293157",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w07_close_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_close_sample_vial_s08": {
+          "工艺选择": 4,
+          "样品ID": [
+            101
+          ],
+          "瓶盖暂存位": 1
+        }
+      }
+    },
+    {
+      "sample_id": "Sample A",
+      "order": 16,
+      "template_id": "task_1c_6b0c60b7fa3a4a39a6dda2f08df56ac2",
+      "template_name": "S08 取瓶 等 2 步",
+      "node_ids": [
+        "w07_pick_sample_vial_s08",
+        "w07_place_sample_vial_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_sample_vial_s11": {
+          "product_type": 2,
+          "position": "1-1"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample B",
+      "order": 0,
+      "template_id": "task_w_ae3c6440a875496887ddc9e1e3f988de",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w01_pick_beaker_s03",
+        "w01_place_beaker_s072"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_pick_beaker_s03": {
+          "product_type": 1,
+          "position": "1-2"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample B",
+      "order": 1,
+      "template_id": "task_x_b8833e9573c14ef987962563f83491d7",
+      "template_name": "S07 注粉",
+      "node_ids": [
+        "w01_dose_powder_s07"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_dose_powder_s07": {
+          "coarse_position": 1,
+          "fine_position": 1,
+          "target_weight": 1.0,
+          "recipe_name": "default"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample B",
+      "order": 2,
+      "template_id": "task_y_0ec9afcdcc1246e1a9dbc4caeb10865e",
+      "template_name": "S072 取料 等 2 步",
+      "node_ids": [
+        "w02_pick_beaker_s072",
+        "w02_place_beaker_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample B",
+      "order": 3,
+      "template_id": "task_z_9a599902d061465b8507f47145e13681",
+      "template_name": "S06 泵加液完整流程：烧杯检测 → 液位确认 → 写入工艺参数 → 等待加工完成",
+      "node_ids": [
+        "w02_add_solvent_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample B",
+      "order": 4,
+      "template_id": "task_10_252e5ac2de1e4070bf1a4ab4560361ad",
+      "template_name": "S06 取料 等 2 步",
+      "node_ids": [
+        "w03_pick_beaker_s06",
+        "w03_place_beaker_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample B",
+      "order": 5,
+      "template_id": "task_11_c23cf203e41b45aa9ef1e21946315663",
+      "template_name": "按配置复用或一次性使用 S09 加液 TIP",
+      "node_ids": [
+        "w03_add_liquid_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w03_add_liquid_s09": {
+          "liquid_count": 1,
+          "liquid_additions": [
+            {
+              "liquid_station_index": 1,
+              "solvent_batch_id": "solvent-Sample-B",
+              "volume": 5000,
+              "reuse_tip": false
+            }
+          ],
+          "volume_unit": "raw",
+          "skip_level_check": false,
+          "initialize_tip_inventory": false
+        }
+      }
+    },
+    {
+      "sample_id": "Sample B",
+      "order": 6,
+      "template_id": "task_12_ddf3487bcf334cd2883f57dd539e232f",
+      "template_name": "S09 取料 等 2 步",
+      "node_ids": [
+        "w04_pick_beaker_s09",
+        "w04_place_beaker_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_place_beaker_s04": {
+          "position": 2,
+          "sample_id": "Sample B"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample B",
+      "order": 7,
+      "template_id": "task_13_3913b0c1c62a401faeacea2f1431eeac",
+      "template_name": "执行 S04 磁搅加工",
+      "node_ids": [
+        "w04_run_stirring_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_run_stirring_s04": {
+          "position": 2,
+          "duration": 5.0
+        }
+      }
+    },
+    {
+      "sample_id": "Sample B",
+      "order": 8,
+      "template_id": "task_14_17dc3803b96548348184ab74e5df2aa7",
+      "template_name": "S04 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s04",
+        "w06_place_beaker_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w06_pick_beaker_s04": {
+          "position": 2
+        }
+      }
+    },
+    {
+      "sample_id": "Sample B",
+      "order": 9,
+      "template_id": "task_15_14ec48e0e0a243b3ae3a2f3fb5d5e9cf",
+      "template_name": "执行烧杯姿势拍照检测",
+      "node_ids": [
+        "w06_take_photo_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample B",
+      "order": 10,
+      "template_id": "task_16_5059b9d9471d46b79a37e38e49fc2068",
+      "template_name": "S05 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s05_for_density",
+        "w05_place_beaker_s09_for_density"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample B",
+      "order": 11,
+      "template_id": "task_17_888c089cd83b4b0d9cda634e6657d296",
+      "template_name": "执行 S09 独立密度测量并自动管理一次性 TIP",
+      "node_ids": [
+        "w05_measure_density_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample B",
+      "order": 12,
+      "template_id": "task_18_cb50a0e35a694e48a13305ef829e14fd",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w05_pick_sample_vial_s03",
+        "w05_place_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_pick_sample_vial_s03": {
+          "product_type": 2,
+          "position": "1-2"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample B",
+      "order": 13,
+      "template_id": "task_19_0480d4e88835496c9118fe8e14c3fdf4",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w05_open_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_open_sample_vial_s08": {
+          "工艺选择": 3,
+          "样品ID": [
+            102
+          ],
+          "瓶盖暂存位": 2
+        }
+      }
+    },
+    {
+      "sample_id": "Sample B",
+      "order": 14,
+      "template_id": "task_1a_9245b2850e6844e2b8135ca645c220e5",
+      "template_name": "S09 取料 等 3 步",
+      "node_ids": [
+        "w06_pick_beaker_s09_after_density",
+        "w07_pour_beaker_s08",
+        "w07_place_beaker_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_beaker_s11": {
+          "product_type": 1,
+          "position": "1-2"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample B",
+      "order": 15,
+      "template_id": "task_1b_59510a4a4ba0414790d14cdb36293157",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w07_close_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_close_sample_vial_s08": {
+          "工艺选择": 4,
+          "样品ID": [
+            102
+          ],
+          "瓶盖暂存位": 2
+        }
+      }
+    },
+    {
+      "sample_id": "Sample B",
+      "order": 16,
+      "template_id": "task_1c_6b0c60b7fa3a4a39a6dda2f08df56ac2",
+      "template_name": "S08 取瓶 等 2 步",
+      "node_ids": [
+        "w07_pick_sample_vial_s08",
+        "w07_place_sample_vial_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_sample_vial_s11": {
+          "product_type": 2,
+          "position": "1-2"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample C",
+      "order": 0,
+      "template_id": "task_w_ae3c6440a875496887ddc9e1e3f988de",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w01_pick_beaker_s03",
+        "w01_place_beaker_s072"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_pick_beaker_s03": {
+          "product_type": 1,
+          "position": "1-3"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample C",
+      "order": 1,
+      "template_id": "task_x_b8833e9573c14ef987962563f83491d7",
+      "template_name": "S07 注粉",
+      "node_ids": [
+        "w01_dose_powder_s07"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_dose_powder_s07": {
+          "coarse_position": 1,
+          "fine_position": 1,
+          "target_weight": 1.0,
+          "recipe_name": "default"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample C",
+      "order": 2,
+      "template_id": "task_y_0ec9afcdcc1246e1a9dbc4caeb10865e",
+      "template_name": "S072 取料 等 2 步",
+      "node_ids": [
+        "w02_pick_beaker_s072",
+        "w02_place_beaker_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample C",
+      "order": 3,
+      "template_id": "task_z_9a599902d061465b8507f47145e13681",
+      "template_name": "S06 泵加液完整流程：烧杯检测 → 液位确认 → 写入工艺参数 → 等待加工完成",
+      "node_ids": [
+        "w02_add_solvent_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample C",
+      "order": 4,
+      "template_id": "task_10_252e5ac2de1e4070bf1a4ab4560361ad",
+      "template_name": "S06 取料 等 2 步",
+      "node_ids": [
+        "w03_pick_beaker_s06",
+        "w03_place_beaker_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample C",
+      "order": 5,
+      "template_id": "task_11_c23cf203e41b45aa9ef1e21946315663",
+      "template_name": "按配置复用或一次性使用 S09 加液 TIP",
+      "node_ids": [
+        "w03_add_liquid_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w03_add_liquid_s09": {
+          "liquid_count": 1,
+          "liquid_additions": [
+            {
+              "liquid_station_index": 1,
+              "solvent_batch_id": "solvent-Sample-C",
+              "volume": 5000,
+              "reuse_tip": false
+            }
+          ],
+          "volume_unit": "raw",
+          "skip_level_check": false,
+          "initialize_tip_inventory": false
+        }
+      }
+    },
+    {
+      "sample_id": "Sample C",
+      "order": 6,
+      "template_id": "task_12_ddf3487bcf334cd2883f57dd539e232f",
+      "template_name": "S09 取料 等 2 步",
+      "node_ids": [
+        "w04_pick_beaker_s09",
+        "w04_place_beaker_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_place_beaker_s04": {
+          "position": 3,
+          "sample_id": "Sample C"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample C",
+      "order": 7,
+      "template_id": "task_13_3913b0c1c62a401faeacea2f1431eeac",
+      "template_name": "执行 S04 磁搅加工",
+      "node_ids": [
+        "w04_run_stirring_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_run_stirring_s04": {
+          "position": 3,
+          "duration": 5.0
+        }
+      }
+    },
+    {
+      "sample_id": "Sample C",
+      "order": 8,
+      "template_id": "task_14_17dc3803b96548348184ab74e5df2aa7",
+      "template_name": "S04 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s04",
+        "w06_place_beaker_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w06_pick_beaker_s04": {
+          "position": 3
+        }
+      }
+    },
+    {
+      "sample_id": "Sample C",
+      "order": 9,
+      "template_id": "task_15_14ec48e0e0a243b3ae3a2f3fb5d5e9cf",
+      "template_name": "执行烧杯姿势拍照检测",
+      "node_ids": [
+        "w06_take_photo_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample C",
+      "order": 10,
+      "template_id": "task_16_5059b9d9471d46b79a37e38e49fc2068",
+      "template_name": "S05 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s05_for_density",
+        "w05_place_beaker_s09_for_density"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample C",
+      "order": 11,
+      "template_id": "task_17_888c089cd83b4b0d9cda634e6657d296",
+      "template_name": "执行 S09 独立密度测量并自动管理一次性 TIP",
+      "node_ids": [
+        "w05_measure_density_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample C",
+      "order": 12,
+      "template_id": "task_18_cb50a0e35a694e48a13305ef829e14fd",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w05_pick_sample_vial_s03",
+        "w05_place_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_pick_sample_vial_s03": {
+          "product_type": 2,
+          "position": "1-3"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample C",
+      "order": 13,
+      "template_id": "task_19_0480d4e88835496c9118fe8e14c3fdf4",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w05_open_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_open_sample_vial_s08": {
+          "工艺选择": 3,
+          "样品ID": [
+            103
+          ],
+          "瓶盖暂存位": 3
+        }
+      }
+    },
+    {
+      "sample_id": "Sample C",
+      "order": 14,
+      "template_id": "task_1a_9245b2850e6844e2b8135ca645c220e5",
+      "template_name": "S09 取料 等 3 步",
+      "node_ids": [
+        "w06_pick_beaker_s09_after_density",
+        "w07_pour_beaker_s08",
+        "w07_place_beaker_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_beaker_s11": {
+          "product_type": 1,
+          "position": "1-3"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample C",
+      "order": 15,
+      "template_id": "task_1b_59510a4a4ba0414790d14cdb36293157",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w07_close_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_close_sample_vial_s08": {
+          "工艺选择": 4,
+          "样品ID": [
+            103
+          ],
+          "瓶盖暂存位": 3
+        }
+      }
+    },
+    {
+      "sample_id": "Sample C",
+      "order": 16,
+      "template_id": "task_1c_6b0c60b7fa3a4a39a6dda2f08df56ac2",
+      "template_name": "S08 取瓶 等 2 步",
+      "node_ids": [
+        "w07_pick_sample_vial_s08",
+        "w07_place_sample_vial_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_sample_vial_s11": {
+          "product_type": 2,
+          "position": "1-3"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample D",
+      "order": 0,
+      "template_id": "task_w_ae3c6440a875496887ddc9e1e3f988de",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w01_pick_beaker_s03",
+        "w01_place_beaker_s072"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_pick_beaker_s03": {
+          "product_type": 1,
+          "position": "1-4"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample D",
+      "order": 1,
+      "template_id": "task_x_b8833e9573c14ef987962563f83491d7",
+      "template_name": "S07 注粉",
+      "node_ids": [
+        "w01_dose_powder_s07"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_dose_powder_s07": {
+          "coarse_position": 1,
+          "fine_position": 1,
+          "target_weight": 1.0,
+          "recipe_name": "default"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample D",
+      "order": 2,
+      "template_id": "task_y_0ec9afcdcc1246e1a9dbc4caeb10865e",
+      "template_name": "S072 取料 等 2 步",
+      "node_ids": [
+        "w02_pick_beaker_s072",
+        "w02_place_beaker_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample D",
+      "order": 3,
+      "template_id": "task_z_9a599902d061465b8507f47145e13681",
+      "template_name": "S06 泵加液完整流程：烧杯检测 → 液位确认 → 写入工艺参数 → 等待加工完成",
+      "node_ids": [
+        "w02_add_solvent_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample D",
+      "order": 4,
+      "template_id": "task_10_252e5ac2de1e4070bf1a4ab4560361ad",
+      "template_name": "S06 取料 等 2 步",
+      "node_ids": [
+        "w03_pick_beaker_s06",
+        "w03_place_beaker_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample D",
+      "order": 5,
+      "template_id": "task_11_c23cf203e41b45aa9ef1e21946315663",
+      "template_name": "按配置复用或一次性使用 S09 加液 TIP",
+      "node_ids": [
+        "w03_add_liquid_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w03_add_liquid_s09": {
+          "liquid_count": 1,
+          "liquid_additions": [
+            {
+              "liquid_station_index": 1,
+              "solvent_batch_id": "solvent-Sample-D",
+              "volume": 5000,
+              "reuse_tip": false
+            }
+          ],
+          "volume_unit": "raw",
+          "skip_level_check": false,
+          "initialize_tip_inventory": false
+        }
+      }
+    },
+    {
+      "sample_id": "Sample D",
+      "order": 6,
+      "template_id": "task_12_ddf3487bcf334cd2883f57dd539e232f",
+      "template_name": "S09 取料 等 2 步",
+      "node_ids": [
+        "w04_pick_beaker_s09",
+        "w04_place_beaker_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_place_beaker_s04": {
+          "position": 4,
+          "sample_id": "Sample D"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample D",
+      "order": 7,
+      "template_id": "task_13_3913b0c1c62a401faeacea2f1431eeac",
+      "template_name": "执行 S04 磁搅加工",
+      "node_ids": [
+        "w04_run_stirring_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_run_stirring_s04": {
+          "position": 4,
+          "duration": 5.0
+        }
+      }
+    },
+    {
+      "sample_id": "Sample D",
+      "order": 8,
+      "template_id": "task_14_17dc3803b96548348184ab74e5df2aa7",
+      "template_name": "S04 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s04",
+        "w06_place_beaker_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w06_pick_beaker_s04": {
+          "position": 4
+        }
+      }
+    },
+    {
+      "sample_id": "Sample D",
+      "order": 9,
+      "template_id": "task_15_14ec48e0e0a243b3ae3a2f3fb5d5e9cf",
+      "template_name": "执行烧杯姿势拍照检测",
+      "node_ids": [
+        "w06_take_photo_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample D",
+      "order": 10,
+      "template_id": "task_16_5059b9d9471d46b79a37e38e49fc2068",
+      "template_name": "S05 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s05_for_density",
+        "w05_place_beaker_s09_for_density"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample D",
+      "order": 11,
+      "template_id": "task_17_888c089cd83b4b0d9cda634e6657d296",
+      "template_name": "执行 S09 独立密度测量并自动管理一次性 TIP",
+      "node_ids": [
+        "w05_measure_density_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample D",
+      "order": 12,
+      "template_id": "task_18_cb50a0e35a694e48a13305ef829e14fd",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w05_pick_sample_vial_s03",
+        "w05_place_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_pick_sample_vial_s03": {
+          "product_type": 2,
+          "position": "1-4"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample D",
+      "order": 13,
+      "template_id": "task_19_0480d4e88835496c9118fe8e14c3fdf4",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w05_open_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_open_sample_vial_s08": {
+          "工艺选择": 3,
+          "样品ID": [
+            104
+          ],
+          "瓶盖暂存位": 4
+        }
+      }
+    },
+    {
+      "sample_id": "Sample D",
+      "order": 14,
+      "template_id": "task_1a_9245b2850e6844e2b8135ca645c220e5",
+      "template_name": "S09 取料 等 3 步",
+      "node_ids": [
+        "w06_pick_beaker_s09_after_density",
+        "w07_pour_beaker_s08",
+        "w07_place_beaker_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_beaker_s11": {
+          "product_type": 1,
+          "position": "1-4"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample D",
+      "order": 15,
+      "template_id": "task_1b_59510a4a4ba0414790d14cdb36293157",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w07_close_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_close_sample_vial_s08": {
+          "工艺选择": 4,
+          "样品ID": [
+            104
+          ],
+          "瓶盖暂存位": 4
+        }
+      }
+    },
+    {
+      "sample_id": "Sample D",
+      "order": 16,
+      "template_id": "task_1c_6b0c60b7fa3a4a39a6dda2f08df56ac2",
+      "template_name": "S08 取瓶 等 2 步",
+      "node_ids": [
+        "w07_pick_sample_vial_s08",
+        "w07_place_sample_vial_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_sample_vial_s11": {
+          "product_type": 2,
+          "position": "1-4"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample E",
+      "order": 0,
+      "template_id": "task_w_ae3c6440a875496887ddc9e1e3f988de",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w01_pick_beaker_s03",
+        "w01_place_beaker_s072"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_pick_beaker_s03": {
+          "product_type": 1,
+          "position": "1-5"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample E",
+      "order": 1,
+      "template_id": "task_x_b8833e9573c14ef987962563f83491d7",
+      "template_name": "S07 注粉",
+      "node_ids": [
+        "w01_dose_powder_s07"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_dose_powder_s07": {
+          "coarse_position": 1,
+          "fine_position": 1,
+          "target_weight": 1.0,
+          "recipe_name": "default"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample E",
+      "order": 2,
+      "template_id": "task_y_0ec9afcdcc1246e1a9dbc4caeb10865e",
+      "template_name": "S072 取料 等 2 步",
+      "node_ids": [
+        "w02_pick_beaker_s072",
+        "w02_place_beaker_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample E",
+      "order": 3,
+      "template_id": "task_z_9a599902d061465b8507f47145e13681",
+      "template_name": "S06 泵加液完整流程：烧杯检测 → 液位确认 → 写入工艺参数 → 等待加工完成",
+      "node_ids": [
+        "w02_add_solvent_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample E",
+      "order": 4,
+      "template_id": "task_10_252e5ac2de1e4070bf1a4ab4560361ad",
+      "template_name": "S06 取料 等 2 步",
+      "node_ids": [
+        "w03_pick_beaker_s06",
+        "w03_place_beaker_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample E",
+      "order": 5,
+      "template_id": "task_11_c23cf203e41b45aa9ef1e21946315663",
+      "template_name": "按配置复用或一次性使用 S09 加液 TIP",
+      "node_ids": [
+        "w03_add_liquid_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w03_add_liquid_s09": {
+          "liquid_count": 1,
+          "liquid_additions": [
+            {
+              "liquid_station_index": 1,
+              "solvent_batch_id": "solvent-Sample-E",
+              "volume": 5000,
+              "reuse_tip": false
+            }
+          ],
+          "volume_unit": "raw",
+          "skip_level_check": false,
+          "initialize_tip_inventory": false
+        }
+      }
+    },
+    {
+      "sample_id": "Sample E",
+      "order": 6,
+      "template_id": "task_12_ddf3487bcf334cd2883f57dd539e232f",
+      "template_name": "S09 取料 等 2 步",
+      "node_ids": [
+        "w04_pick_beaker_s09",
+        "w04_place_beaker_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_place_beaker_s04": {
+          "position": 1,
+          "sample_id": "Sample E"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample E",
+      "order": 7,
+      "template_id": "task_13_3913b0c1c62a401faeacea2f1431eeac",
+      "template_name": "执行 S04 磁搅加工",
+      "node_ids": [
+        "w04_run_stirring_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_run_stirring_s04": {
+          "position": 1,
+          "duration": 5.0
+        }
+      }
+    },
+    {
+      "sample_id": "Sample E",
+      "order": 8,
+      "template_id": "task_14_17dc3803b96548348184ab74e5df2aa7",
+      "template_name": "S04 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s04",
+        "w06_place_beaker_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w06_pick_beaker_s04": {
+          "position": 1
+        }
+      }
+    },
+    {
+      "sample_id": "Sample E",
+      "order": 9,
+      "template_id": "task_15_14ec48e0e0a243b3ae3a2f3fb5d5e9cf",
+      "template_name": "执行烧杯姿势拍照检测",
+      "node_ids": [
+        "w06_take_photo_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample E",
+      "order": 10,
+      "template_id": "task_16_5059b9d9471d46b79a37e38e49fc2068",
+      "template_name": "S05 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s05_for_density",
+        "w05_place_beaker_s09_for_density"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample E",
+      "order": 11,
+      "template_id": "task_17_888c089cd83b4b0d9cda634e6657d296",
+      "template_name": "执行 S09 独立密度测量并自动管理一次性 TIP",
+      "node_ids": [
+        "w05_measure_density_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample E",
+      "order": 12,
+      "template_id": "task_18_cb50a0e35a694e48a13305ef829e14fd",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w05_pick_sample_vial_s03",
+        "w05_place_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_pick_sample_vial_s03": {
+          "product_type": 2,
+          "position": "1-5"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample E",
+      "order": 13,
+      "template_id": "task_19_0480d4e88835496c9118fe8e14c3fdf4",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w05_open_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_open_sample_vial_s08": {
+          "工艺选择": 3,
+          "样品ID": [
+            105
+          ],
+          "瓶盖暂存位": 5
+        }
+      }
+    },
+    {
+      "sample_id": "Sample E",
+      "order": 14,
+      "template_id": "task_1a_9245b2850e6844e2b8135ca645c220e5",
+      "template_name": "S09 取料 等 3 步",
+      "node_ids": [
+        "w06_pick_beaker_s09_after_density",
+        "w07_pour_beaker_s08",
+        "w07_place_beaker_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_beaker_s11": {
+          "product_type": 1,
+          "position": "1-5"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample E",
+      "order": 15,
+      "template_id": "task_1b_59510a4a4ba0414790d14cdb36293157",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w07_close_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_close_sample_vial_s08": {
+          "工艺选择": 4,
+          "样品ID": [
+            105
+          ],
+          "瓶盖暂存位": 5
+        }
+      }
+    },
+    {
+      "sample_id": "Sample E",
+      "order": 16,
+      "template_id": "task_1c_6b0c60b7fa3a4a39a6dda2f08df56ac2",
+      "template_name": "S08 取瓶 等 2 步",
+      "node_ids": [
+        "w07_pick_sample_vial_s08",
+        "w07_place_sample_vial_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_sample_vial_s11": {
+          "product_type": 2,
+          "position": "1-5"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample F",
+      "order": 0,
+      "template_id": "task_w_ae3c6440a875496887ddc9e1e3f988de",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w01_pick_beaker_s03",
+        "w01_place_beaker_s072"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_pick_beaker_s03": {
+          "product_type": 1,
+          "position": "1-6"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample F",
+      "order": 1,
+      "template_id": "task_x_b8833e9573c14ef987962563f83491d7",
+      "template_name": "S07 注粉",
+      "node_ids": [
+        "w01_dose_powder_s07"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_dose_powder_s07": {
+          "coarse_position": 1,
+          "fine_position": 1,
+          "target_weight": 1.0,
+          "recipe_name": "default"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample F",
+      "order": 2,
+      "template_id": "task_y_0ec9afcdcc1246e1a9dbc4caeb10865e",
+      "template_name": "S072 取料 等 2 步",
+      "node_ids": [
+        "w02_pick_beaker_s072",
+        "w02_place_beaker_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample F",
+      "order": 3,
+      "template_id": "task_z_9a599902d061465b8507f47145e13681",
+      "template_name": "S06 泵加液完整流程：烧杯检测 → 液位确认 → 写入工艺参数 → 等待加工完成",
+      "node_ids": [
+        "w02_add_solvent_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample F",
+      "order": 4,
+      "template_id": "task_10_252e5ac2de1e4070bf1a4ab4560361ad",
+      "template_name": "S06 取料 等 2 步",
+      "node_ids": [
+        "w03_pick_beaker_s06",
+        "w03_place_beaker_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample F",
+      "order": 5,
+      "template_id": "task_11_c23cf203e41b45aa9ef1e21946315663",
+      "template_name": "按配置复用或一次性使用 S09 加液 TIP",
+      "node_ids": [
+        "w03_add_liquid_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w03_add_liquid_s09": {
+          "liquid_count": 1,
+          "liquid_additions": [
+            {
+              "liquid_station_index": 1,
+              "solvent_batch_id": "solvent-Sample-F",
+              "volume": 5000,
+              "reuse_tip": false
+            }
+          ],
+          "volume_unit": "raw",
+          "skip_level_check": false,
+          "initialize_tip_inventory": false
+        }
+      }
+    },
+    {
+      "sample_id": "Sample F",
+      "order": 6,
+      "template_id": "task_12_ddf3487bcf334cd2883f57dd539e232f",
+      "template_name": "S09 取料 等 2 步",
+      "node_ids": [
+        "w04_pick_beaker_s09",
+        "w04_place_beaker_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_place_beaker_s04": {
+          "position": 2,
+          "sample_id": "Sample F"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample F",
+      "order": 7,
+      "template_id": "task_13_3913b0c1c62a401faeacea2f1431eeac",
+      "template_name": "执行 S04 磁搅加工",
+      "node_ids": [
+        "w04_run_stirring_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_run_stirring_s04": {
+          "position": 2,
+          "duration": 5.0
+        }
+      }
+    },
+    {
+      "sample_id": "Sample F",
+      "order": 8,
+      "template_id": "task_14_17dc3803b96548348184ab74e5df2aa7",
+      "template_name": "S04 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s04",
+        "w06_place_beaker_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w06_pick_beaker_s04": {
+          "position": 2
+        }
+      }
+    },
+    {
+      "sample_id": "Sample F",
+      "order": 9,
+      "template_id": "task_15_14ec48e0e0a243b3ae3a2f3fb5d5e9cf",
+      "template_name": "执行烧杯姿势拍照检测",
+      "node_ids": [
+        "w06_take_photo_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample F",
+      "order": 10,
+      "template_id": "task_16_5059b9d9471d46b79a37e38e49fc2068",
+      "template_name": "S05 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s05_for_density",
+        "w05_place_beaker_s09_for_density"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample F",
+      "order": 11,
+      "template_id": "task_17_888c089cd83b4b0d9cda634e6657d296",
+      "template_name": "执行 S09 独立密度测量并自动管理一次性 TIP",
+      "node_ids": [
+        "w05_measure_density_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample F",
+      "order": 12,
+      "template_id": "task_18_cb50a0e35a694e48a13305ef829e14fd",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w05_pick_sample_vial_s03",
+        "w05_place_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_pick_sample_vial_s03": {
+          "product_type": 2,
+          "position": "1-6"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample F",
+      "order": 13,
+      "template_id": "task_19_0480d4e88835496c9118fe8e14c3fdf4",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w05_open_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_open_sample_vial_s08": {
+          "工艺选择": 3,
+          "样品ID": [
+            106
+          ],
+          "瓶盖暂存位": 1
+        }
+      }
+    },
+    {
+      "sample_id": "Sample F",
+      "order": 14,
+      "template_id": "task_1a_9245b2850e6844e2b8135ca645c220e5",
+      "template_name": "S09 取料 等 3 步",
+      "node_ids": [
+        "w06_pick_beaker_s09_after_density",
+        "w07_pour_beaker_s08",
+        "w07_place_beaker_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_beaker_s11": {
+          "product_type": 1,
+          "position": "1-6"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample F",
+      "order": 15,
+      "template_id": "task_1b_59510a4a4ba0414790d14cdb36293157",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w07_close_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_close_sample_vial_s08": {
+          "工艺选择": 4,
+          "样品ID": [
+            106
+          ],
+          "瓶盖暂存位": 1
+        }
+      }
+    },
+    {
+      "sample_id": "Sample F",
+      "order": 16,
+      "template_id": "task_1c_6b0c60b7fa3a4a39a6dda2f08df56ac2",
+      "template_name": "S08 取瓶 等 2 步",
+      "node_ids": [
+        "w07_pick_sample_vial_s08",
+        "w07_place_sample_vial_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_sample_vial_s11": {
+          "product_type": 2,
+          "position": "1-6"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample G",
+      "order": 0,
+      "template_id": "task_w_ae3c6440a875496887ddc9e1e3f988de",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w01_pick_beaker_s03",
+        "w01_place_beaker_s072"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_pick_beaker_s03": {
+          "product_type": 1,
+          "position": "2-1"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample G",
+      "order": 1,
+      "template_id": "task_x_b8833e9573c14ef987962563f83491d7",
+      "template_name": "S07 注粉",
+      "node_ids": [
+        "w01_dose_powder_s07"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_dose_powder_s07": {
+          "coarse_position": 1,
+          "fine_position": 1,
+          "target_weight": 1.0,
+          "recipe_name": "default"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample G",
+      "order": 2,
+      "template_id": "task_y_0ec9afcdcc1246e1a9dbc4caeb10865e",
+      "template_name": "S072 取料 等 2 步",
+      "node_ids": [
+        "w02_pick_beaker_s072",
+        "w02_place_beaker_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample G",
+      "order": 3,
+      "template_id": "task_z_9a599902d061465b8507f47145e13681",
+      "template_name": "S06 泵加液完整流程：烧杯检测 → 液位确认 → 写入工艺参数 → 等待加工完成",
+      "node_ids": [
+        "w02_add_solvent_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample G",
+      "order": 4,
+      "template_id": "task_10_252e5ac2de1e4070bf1a4ab4560361ad",
+      "template_name": "S06 取料 等 2 步",
+      "node_ids": [
+        "w03_pick_beaker_s06",
+        "w03_place_beaker_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample G",
+      "order": 5,
+      "template_id": "task_11_c23cf203e41b45aa9ef1e21946315663",
+      "template_name": "按配置复用或一次性使用 S09 加液 TIP",
+      "node_ids": [
+        "w03_add_liquid_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w03_add_liquid_s09": {
+          "liquid_count": 1,
+          "liquid_additions": [
+            {
+              "liquid_station_index": 1,
+              "solvent_batch_id": "solvent-Sample-G",
+              "volume": 5000,
+              "reuse_tip": false
+            }
+          ],
+          "volume_unit": "raw",
+          "skip_level_check": false,
+          "initialize_tip_inventory": false
+        }
+      }
+    },
+    {
+      "sample_id": "Sample G",
+      "order": 6,
+      "template_id": "task_12_ddf3487bcf334cd2883f57dd539e232f",
+      "template_name": "S09 取料 等 2 步",
+      "node_ids": [
+        "w04_pick_beaker_s09",
+        "w04_place_beaker_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_place_beaker_s04": {
+          "position": 3,
+          "sample_id": "Sample G"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample G",
+      "order": 7,
+      "template_id": "task_13_3913b0c1c62a401faeacea2f1431eeac",
+      "template_name": "执行 S04 磁搅加工",
+      "node_ids": [
+        "w04_run_stirring_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_run_stirring_s04": {
+          "position": 3,
+          "duration": 5.0
+        }
+      }
+    },
+    {
+      "sample_id": "Sample G",
+      "order": 8,
+      "template_id": "task_14_17dc3803b96548348184ab74e5df2aa7",
+      "template_name": "S04 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s04",
+        "w06_place_beaker_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w06_pick_beaker_s04": {
+          "position": 3
+        }
+      }
+    },
+    {
+      "sample_id": "Sample G",
+      "order": 9,
+      "template_id": "task_15_14ec48e0e0a243b3ae3a2f3fb5d5e9cf",
+      "template_name": "执行烧杯姿势拍照检测",
+      "node_ids": [
+        "w06_take_photo_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample G",
+      "order": 10,
+      "template_id": "task_16_5059b9d9471d46b79a37e38e49fc2068",
+      "template_name": "S05 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s05_for_density",
+        "w05_place_beaker_s09_for_density"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample G",
+      "order": 11,
+      "template_id": "task_17_888c089cd83b4b0d9cda634e6657d296",
+      "template_name": "执行 S09 独立密度测量并自动管理一次性 TIP",
+      "node_ids": [
+        "w05_measure_density_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample G",
+      "order": 12,
+      "template_id": "task_18_cb50a0e35a694e48a13305ef829e14fd",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w05_pick_sample_vial_s03",
+        "w05_place_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_pick_sample_vial_s03": {
+          "product_type": 2,
+          "position": "2-1"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample G",
+      "order": 13,
+      "template_id": "task_19_0480d4e88835496c9118fe8e14c3fdf4",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w05_open_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_open_sample_vial_s08": {
+          "工艺选择": 3,
+          "样品ID": [
+            107
+          ],
+          "瓶盖暂存位": 2
+        }
+      }
+    },
+    {
+      "sample_id": "Sample G",
+      "order": 14,
+      "template_id": "task_1a_9245b2850e6844e2b8135ca645c220e5",
+      "template_name": "S09 取料 等 3 步",
+      "node_ids": [
+        "w06_pick_beaker_s09_after_density",
+        "w07_pour_beaker_s08",
+        "w07_place_beaker_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_beaker_s11": {
+          "product_type": 1,
+          "position": "2-1"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample G",
+      "order": 15,
+      "template_id": "task_1b_59510a4a4ba0414790d14cdb36293157",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w07_close_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_close_sample_vial_s08": {
+          "工艺选择": 4,
+          "样品ID": [
+            107
+          ],
+          "瓶盖暂存位": 2
+        }
+      }
+    },
+    {
+      "sample_id": "Sample G",
+      "order": 16,
+      "template_id": "task_1c_6b0c60b7fa3a4a39a6dda2f08df56ac2",
+      "template_name": "S08 取瓶 等 2 步",
+      "node_ids": [
+        "w07_pick_sample_vial_s08",
+        "w07_place_sample_vial_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_sample_vial_s11": {
+          "product_type": 2,
+          "position": "2-1"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample H",
+      "order": 0,
+      "template_id": "task_w_ae3c6440a875496887ddc9e1e3f988de",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w01_pick_beaker_s03",
+        "w01_place_beaker_s072"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_pick_beaker_s03": {
+          "product_type": 1,
+          "position": "2-2"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample H",
+      "order": 1,
+      "template_id": "task_x_b8833e9573c14ef987962563f83491d7",
+      "template_name": "S07 注粉",
+      "node_ids": [
+        "w01_dose_powder_s07"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_dose_powder_s07": {
+          "coarse_position": 1,
+          "fine_position": 1,
+          "target_weight": 1.0,
+          "recipe_name": "default"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample H",
+      "order": 2,
+      "template_id": "task_y_0ec9afcdcc1246e1a9dbc4caeb10865e",
+      "template_name": "S072 取料 等 2 步",
+      "node_ids": [
+        "w02_pick_beaker_s072",
+        "w02_place_beaker_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample H",
+      "order": 3,
+      "template_id": "task_z_9a599902d061465b8507f47145e13681",
+      "template_name": "S06 泵加液完整流程：烧杯检测 → 液位确认 → 写入工艺参数 → 等待加工完成",
+      "node_ids": [
+        "w02_add_solvent_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample H",
+      "order": 4,
+      "template_id": "task_10_252e5ac2de1e4070bf1a4ab4560361ad",
+      "template_name": "S06 取料 等 2 步",
+      "node_ids": [
+        "w03_pick_beaker_s06",
+        "w03_place_beaker_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample H",
+      "order": 5,
+      "template_id": "task_11_c23cf203e41b45aa9ef1e21946315663",
+      "template_name": "按配置复用或一次性使用 S09 加液 TIP",
+      "node_ids": [
+        "w03_add_liquid_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w03_add_liquid_s09": {
+          "liquid_count": 1,
+          "liquid_additions": [
+            {
+              "liquid_station_index": 1,
+              "solvent_batch_id": "solvent-Sample-H",
+              "volume": 5000,
+              "reuse_tip": false
+            }
+          ],
+          "volume_unit": "raw",
+          "skip_level_check": false,
+          "initialize_tip_inventory": false
+        }
+      }
+    },
+    {
+      "sample_id": "Sample H",
+      "order": 6,
+      "template_id": "task_12_ddf3487bcf334cd2883f57dd539e232f",
+      "template_name": "S09 取料 等 2 步",
+      "node_ids": [
+        "w04_pick_beaker_s09",
+        "w04_place_beaker_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_place_beaker_s04": {
+          "position": 4,
+          "sample_id": "Sample H"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample H",
+      "order": 7,
+      "template_id": "task_13_3913b0c1c62a401faeacea2f1431eeac",
+      "template_name": "执行 S04 磁搅加工",
+      "node_ids": [
+        "w04_run_stirring_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_run_stirring_s04": {
+          "position": 4,
+          "duration": 5.0
+        }
+      }
+    },
+    {
+      "sample_id": "Sample H",
+      "order": 8,
+      "template_id": "task_14_17dc3803b96548348184ab74e5df2aa7",
+      "template_name": "S04 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s04",
+        "w06_place_beaker_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w06_pick_beaker_s04": {
+          "position": 4
+        }
+      }
+    },
+    {
+      "sample_id": "Sample H",
+      "order": 9,
+      "template_id": "task_15_14ec48e0e0a243b3ae3a2f3fb5d5e9cf",
+      "template_name": "执行烧杯姿势拍照检测",
+      "node_ids": [
+        "w06_take_photo_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample H",
+      "order": 10,
+      "template_id": "task_16_5059b9d9471d46b79a37e38e49fc2068",
+      "template_name": "S05 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s05_for_density",
+        "w05_place_beaker_s09_for_density"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample H",
+      "order": 11,
+      "template_id": "task_17_888c089cd83b4b0d9cda634e6657d296",
+      "template_name": "执行 S09 独立密度测量并自动管理一次性 TIP",
+      "node_ids": [
+        "w05_measure_density_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample H",
+      "order": 12,
+      "template_id": "task_18_cb50a0e35a694e48a13305ef829e14fd",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w05_pick_sample_vial_s03",
+        "w05_place_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_pick_sample_vial_s03": {
+          "product_type": 2,
+          "position": "2-2"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample H",
+      "order": 13,
+      "template_id": "task_19_0480d4e88835496c9118fe8e14c3fdf4",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w05_open_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_open_sample_vial_s08": {
+          "工艺选择": 3,
+          "样品ID": [
+            108
+          ],
+          "瓶盖暂存位": 3
+        }
+      }
+    },
+    {
+      "sample_id": "Sample H",
+      "order": 14,
+      "template_id": "task_1a_9245b2850e6844e2b8135ca645c220e5",
+      "template_name": "S09 取料 等 3 步",
+      "node_ids": [
+        "w06_pick_beaker_s09_after_density",
+        "w07_pour_beaker_s08",
+        "w07_place_beaker_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_beaker_s11": {
+          "product_type": 1,
+          "position": "2-2"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample H",
+      "order": 15,
+      "template_id": "task_1b_59510a4a4ba0414790d14cdb36293157",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w07_close_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_close_sample_vial_s08": {
+          "工艺选择": 4,
+          "样品ID": [
+            108
+          ],
+          "瓶盖暂存位": 3
+        }
+      }
+    },
+    {
+      "sample_id": "Sample H",
+      "order": 16,
+      "template_id": "task_1c_6b0c60b7fa3a4a39a6dda2f08df56ac2",
+      "template_name": "S08 取瓶 等 2 步",
+      "node_ids": [
+        "w07_pick_sample_vial_s08",
+        "w07_place_sample_vial_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_sample_vial_s11": {
+          "product_type": 2,
+          "position": "2-2"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample I",
+      "order": 0,
+      "template_id": "task_w_ae3c6440a875496887ddc9e1e3f988de",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w01_pick_beaker_s03",
+        "w01_place_beaker_s072"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_pick_beaker_s03": {
+          "product_type": 1,
+          "position": "2-3"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample I",
+      "order": 1,
+      "template_id": "task_x_b8833e9573c14ef987962563f83491d7",
+      "template_name": "S07 注粉",
+      "node_ids": [
+        "w01_dose_powder_s07"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_dose_powder_s07": {
+          "coarse_position": 1,
+          "fine_position": 1,
+          "target_weight": 1.0,
+          "recipe_name": "default"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample I",
+      "order": 2,
+      "template_id": "task_y_0ec9afcdcc1246e1a9dbc4caeb10865e",
+      "template_name": "S072 取料 等 2 步",
+      "node_ids": [
+        "w02_pick_beaker_s072",
+        "w02_place_beaker_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample I",
+      "order": 3,
+      "template_id": "task_z_9a599902d061465b8507f47145e13681",
+      "template_name": "S06 泵加液完整流程：烧杯检测 → 液位确认 → 写入工艺参数 → 等待加工完成",
+      "node_ids": [
+        "w02_add_solvent_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample I",
+      "order": 4,
+      "template_id": "task_10_252e5ac2de1e4070bf1a4ab4560361ad",
+      "template_name": "S06 取料 等 2 步",
+      "node_ids": [
+        "w03_pick_beaker_s06",
+        "w03_place_beaker_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample I",
+      "order": 5,
+      "template_id": "task_11_c23cf203e41b45aa9ef1e21946315663",
+      "template_name": "按配置复用或一次性使用 S09 加液 TIP",
+      "node_ids": [
+        "w03_add_liquid_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w03_add_liquid_s09": {
+          "liquid_count": 1,
+          "liquid_additions": [
+            {
+              "liquid_station_index": 1,
+              "solvent_batch_id": "solvent-Sample-I",
+              "volume": 5000,
+              "reuse_tip": false
+            }
+          ],
+          "volume_unit": "raw",
+          "skip_level_check": false,
+          "initialize_tip_inventory": false
+        }
+      }
+    },
+    {
+      "sample_id": "Sample I",
+      "order": 6,
+      "template_id": "task_12_ddf3487bcf334cd2883f57dd539e232f",
+      "template_name": "S09 取料 等 2 步",
+      "node_ids": [
+        "w04_pick_beaker_s09",
+        "w04_place_beaker_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_place_beaker_s04": {
+          "position": 1,
+          "sample_id": "Sample I"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample I",
+      "order": 7,
+      "template_id": "task_13_3913b0c1c62a401faeacea2f1431eeac",
+      "template_name": "执行 S04 磁搅加工",
+      "node_ids": [
+        "w04_run_stirring_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_run_stirring_s04": {
+          "position": 1,
+          "duration": 5.0
+        }
+      }
+    },
+    {
+      "sample_id": "Sample I",
+      "order": 8,
+      "template_id": "task_14_17dc3803b96548348184ab74e5df2aa7",
+      "template_name": "S04 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s04",
+        "w06_place_beaker_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w06_pick_beaker_s04": {
+          "position": 1
+        }
+      }
+    },
+    {
+      "sample_id": "Sample I",
+      "order": 9,
+      "template_id": "task_15_14ec48e0e0a243b3ae3a2f3fb5d5e9cf",
+      "template_name": "执行烧杯姿势拍照检测",
+      "node_ids": [
+        "w06_take_photo_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample I",
+      "order": 10,
+      "template_id": "task_16_5059b9d9471d46b79a37e38e49fc2068",
+      "template_name": "S05 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s05_for_density",
+        "w05_place_beaker_s09_for_density"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample I",
+      "order": 11,
+      "template_id": "task_17_888c089cd83b4b0d9cda634e6657d296",
+      "template_name": "执行 S09 独立密度测量并自动管理一次性 TIP",
+      "node_ids": [
+        "w05_measure_density_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample I",
+      "order": 12,
+      "template_id": "task_18_cb50a0e35a694e48a13305ef829e14fd",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w05_pick_sample_vial_s03",
+        "w05_place_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_pick_sample_vial_s03": {
+          "product_type": 2,
+          "position": "2-3"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample I",
+      "order": 13,
+      "template_id": "task_19_0480d4e88835496c9118fe8e14c3fdf4",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w05_open_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_open_sample_vial_s08": {
+          "工艺选择": 3,
+          "样品ID": [
+            109
+          ],
+          "瓶盖暂存位": 4
+        }
+      }
+    },
+    {
+      "sample_id": "Sample I",
+      "order": 14,
+      "template_id": "task_1a_9245b2850e6844e2b8135ca645c220e5",
+      "template_name": "S09 取料 等 3 步",
+      "node_ids": [
+        "w06_pick_beaker_s09_after_density",
+        "w07_pour_beaker_s08",
+        "w07_place_beaker_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_beaker_s11": {
+          "product_type": 1,
+          "position": "2-3"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample I",
+      "order": 15,
+      "template_id": "task_1b_59510a4a4ba0414790d14cdb36293157",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w07_close_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_close_sample_vial_s08": {
+          "工艺选择": 4,
+          "样品ID": [
+            109
+          ],
+          "瓶盖暂存位": 4
+        }
+      }
+    },
+    {
+      "sample_id": "Sample I",
+      "order": 16,
+      "template_id": "task_1c_6b0c60b7fa3a4a39a6dda2f08df56ac2",
+      "template_name": "S08 取瓶 等 2 步",
+      "node_ids": [
+        "w07_pick_sample_vial_s08",
+        "w07_place_sample_vial_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_sample_vial_s11": {
+          "product_type": 2,
+          "position": "2-3"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample J",
+      "order": 0,
+      "template_id": "task_w_ae3c6440a875496887ddc9e1e3f988de",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w01_pick_beaker_s03",
+        "w01_place_beaker_s072"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_pick_beaker_s03": {
+          "product_type": 1,
+          "position": "2-4"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample J",
+      "order": 1,
+      "template_id": "task_x_b8833e9573c14ef987962563f83491d7",
+      "template_name": "S07 注粉",
+      "node_ids": [
+        "w01_dose_powder_s07"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_dose_powder_s07": {
+          "coarse_position": 1,
+          "fine_position": 1,
+          "target_weight": 1.0,
+          "recipe_name": "default"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample J",
+      "order": 2,
+      "template_id": "task_y_0ec9afcdcc1246e1a9dbc4caeb10865e",
+      "template_name": "S072 取料 等 2 步",
+      "node_ids": [
+        "w02_pick_beaker_s072",
+        "w02_place_beaker_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample J",
+      "order": 3,
+      "template_id": "task_z_9a599902d061465b8507f47145e13681",
+      "template_name": "S06 泵加液完整流程：烧杯检测 → 液位确认 → 写入工艺参数 → 等待加工完成",
+      "node_ids": [
+        "w02_add_solvent_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample J",
+      "order": 4,
+      "template_id": "task_10_252e5ac2de1e4070bf1a4ab4560361ad",
+      "template_name": "S06 取料 等 2 步",
+      "node_ids": [
+        "w03_pick_beaker_s06",
+        "w03_place_beaker_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample J",
+      "order": 5,
+      "template_id": "task_11_c23cf203e41b45aa9ef1e21946315663",
+      "template_name": "按配置复用或一次性使用 S09 加液 TIP",
+      "node_ids": [
+        "w03_add_liquid_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w03_add_liquid_s09": {
+          "liquid_count": 1,
+          "liquid_additions": [
+            {
+              "liquid_station_index": 1,
+              "solvent_batch_id": "solvent-Sample-J",
+              "volume": 5000,
+              "reuse_tip": false
+            }
+          ],
+          "volume_unit": "raw",
+          "skip_level_check": false,
+          "initialize_tip_inventory": false
+        }
+      }
+    },
+    {
+      "sample_id": "Sample J",
+      "order": 6,
+      "template_id": "task_12_ddf3487bcf334cd2883f57dd539e232f",
+      "template_name": "S09 取料 等 2 步",
+      "node_ids": [
+        "w04_pick_beaker_s09",
+        "w04_place_beaker_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_place_beaker_s04": {
+          "position": 2,
+          "sample_id": "Sample J"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample J",
+      "order": 7,
+      "template_id": "task_13_3913b0c1c62a401faeacea2f1431eeac",
+      "template_name": "执行 S04 磁搅加工",
+      "node_ids": [
+        "w04_run_stirring_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_run_stirring_s04": {
+          "position": 2,
+          "duration": 5.0
+        }
+      }
+    },
+    {
+      "sample_id": "Sample J",
+      "order": 8,
+      "template_id": "task_14_17dc3803b96548348184ab74e5df2aa7",
+      "template_name": "S04 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s04",
+        "w06_place_beaker_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w06_pick_beaker_s04": {
+          "position": 2
+        }
+      }
+    },
+    {
+      "sample_id": "Sample J",
+      "order": 9,
+      "template_id": "task_15_14ec48e0e0a243b3ae3a2f3fb5d5e9cf",
+      "template_name": "执行烧杯姿势拍照检测",
+      "node_ids": [
+        "w06_take_photo_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample J",
+      "order": 10,
+      "template_id": "task_16_5059b9d9471d46b79a37e38e49fc2068",
+      "template_name": "S05 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s05_for_density",
+        "w05_place_beaker_s09_for_density"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample J",
+      "order": 11,
+      "template_id": "task_17_888c089cd83b4b0d9cda634e6657d296",
+      "template_name": "执行 S09 独立密度测量并自动管理一次性 TIP",
+      "node_ids": [
+        "w05_measure_density_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample J",
+      "order": 12,
+      "template_id": "task_18_cb50a0e35a694e48a13305ef829e14fd",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w05_pick_sample_vial_s03",
+        "w05_place_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_pick_sample_vial_s03": {
+          "product_type": 2,
+          "position": "2-4"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample J",
+      "order": 13,
+      "template_id": "task_19_0480d4e88835496c9118fe8e14c3fdf4",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w05_open_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_open_sample_vial_s08": {
+          "工艺选择": 3,
+          "样品ID": [
+            110
+          ],
+          "瓶盖暂存位": 5
+        }
+      }
+    },
+    {
+      "sample_id": "Sample J",
+      "order": 14,
+      "template_id": "task_1a_9245b2850e6844e2b8135ca645c220e5",
+      "template_name": "S09 取料 等 3 步",
+      "node_ids": [
+        "w06_pick_beaker_s09_after_density",
+        "w07_pour_beaker_s08",
+        "w07_place_beaker_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_beaker_s11": {
+          "product_type": 1,
+          "position": "2-4"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample J",
+      "order": 15,
+      "template_id": "task_1b_59510a4a4ba0414790d14cdb36293157",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w07_close_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_close_sample_vial_s08": {
+          "工艺选择": 4,
+          "样品ID": [
+            110
+          ],
+          "瓶盖暂存位": 5
+        }
+      }
+    },
+    {
+      "sample_id": "Sample J",
+      "order": 16,
+      "template_id": "task_1c_6b0c60b7fa3a4a39a6dda2f08df56ac2",
+      "template_name": "S08 取瓶 等 2 步",
+      "node_ids": [
+        "w07_pick_sample_vial_s08",
+        "w07_place_sample_vial_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_sample_vial_s11": {
+          "product_type": 2,
+          "position": "2-4"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample K",
+      "order": 0,
+      "template_id": "task_w_ae3c6440a875496887ddc9e1e3f988de",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w01_pick_beaker_s03",
+        "w01_place_beaker_s072"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_pick_beaker_s03": {
+          "product_type": 1,
+          "position": "2-5"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample K",
+      "order": 1,
+      "template_id": "task_x_b8833e9573c14ef987962563f83491d7",
+      "template_name": "S07 注粉",
+      "node_ids": [
+        "w01_dose_powder_s07"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_dose_powder_s07": {
+          "coarse_position": 1,
+          "fine_position": 1,
+          "target_weight": 1.0,
+          "recipe_name": "default"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample K",
+      "order": 2,
+      "template_id": "task_y_0ec9afcdcc1246e1a9dbc4caeb10865e",
+      "template_name": "S072 取料 等 2 步",
+      "node_ids": [
+        "w02_pick_beaker_s072",
+        "w02_place_beaker_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample K",
+      "order": 3,
+      "template_id": "task_z_9a599902d061465b8507f47145e13681",
+      "template_name": "S06 泵加液完整流程：烧杯检测 → 液位确认 → 写入工艺参数 → 等待加工完成",
+      "node_ids": [
+        "w02_add_solvent_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample K",
+      "order": 4,
+      "template_id": "task_10_252e5ac2de1e4070bf1a4ab4560361ad",
+      "template_name": "S06 取料 等 2 步",
+      "node_ids": [
+        "w03_pick_beaker_s06",
+        "w03_place_beaker_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample K",
+      "order": 5,
+      "template_id": "task_11_c23cf203e41b45aa9ef1e21946315663",
+      "template_name": "按配置复用或一次性使用 S09 加液 TIP",
+      "node_ids": [
+        "w03_add_liquid_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w03_add_liquid_s09": {
+          "liquid_count": 1,
+          "liquid_additions": [
+            {
+              "liquid_station_index": 1,
+              "solvent_batch_id": "solvent-Sample-K",
+              "volume": 5000,
+              "reuse_tip": false
+            }
+          ],
+          "volume_unit": "raw",
+          "skip_level_check": false,
+          "initialize_tip_inventory": false
+        }
+      }
+    },
+    {
+      "sample_id": "Sample K",
+      "order": 6,
+      "template_id": "task_12_ddf3487bcf334cd2883f57dd539e232f",
+      "template_name": "S09 取料 等 2 步",
+      "node_ids": [
+        "w04_pick_beaker_s09",
+        "w04_place_beaker_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_place_beaker_s04": {
+          "position": 3,
+          "sample_id": "Sample K"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample K",
+      "order": 7,
+      "template_id": "task_13_3913b0c1c62a401faeacea2f1431eeac",
+      "template_name": "执行 S04 磁搅加工",
+      "node_ids": [
+        "w04_run_stirring_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_run_stirring_s04": {
+          "position": 3,
+          "duration": 5.0
+        }
+      }
+    },
+    {
+      "sample_id": "Sample K",
+      "order": 8,
+      "template_id": "task_14_17dc3803b96548348184ab74e5df2aa7",
+      "template_name": "S04 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s04",
+        "w06_place_beaker_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w06_pick_beaker_s04": {
+          "position": 3
+        }
+      }
+    },
+    {
+      "sample_id": "Sample K",
+      "order": 9,
+      "template_id": "task_15_14ec48e0e0a243b3ae3a2f3fb5d5e9cf",
+      "template_name": "执行烧杯姿势拍照检测",
+      "node_ids": [
+        "w06_take_photo_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample K",
+      "order": 10,
+      "template_id": "task_16_5059b9d9471d46b79a37e38e49fc2068",
+      "template_name": "S05 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s05_for_density",
+        "w05_place_beaker_s09_for_density"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample K",
+      "order": 11,
+      "template_id": "task_17_888c089cd83b4b0d9cda634e6657d296",
+      "template_name": "执行 S09 独立密度测量并自动管理一次性 TIP",
+      "node_ids": [
+        "w05_measure_density_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample K",
+      "order": 12,
+      "template_id": "task_18_cb50a0e35a694e48a13305ef829e14fd",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w05_pick_sample_vial_s03",
+        "w05_place_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_pick_sample_vial_s03": {
+          "product_type": 2,
+          "position": "2-5"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample K",
+      "order": 13,
+      "template_id": "task_19_0480d4e88835496c9118fe8e14c3fdf4",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w05_open_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_open_sample_vial_s08": {
+          "工艺选择": 3,
+          "样品ID": [
+            111
+          ],
+          "瓶盖暂存位": 1
+        }
+      }
+    },
+    {
+      "sample_id": "Sample K",
+      "order": 14,
+      "template_id": "task_1a_9245b2850e6844e2b8135ca645c220e5",
+      "template_name": "S09 取料 等 3 步",
+      "node_ids": [
+        "w06_pick_beaker_s09_after_density",
+        "w07_pour_beaker_s08",
+        "w07_place_beaker_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_beaker_s11": {
+          "product_type": 1,
+          "position": "2-5"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample K",
+      "order": 15,
+      "template_id": "task_1b_59510a4a4ba0414790d14cdb36293157",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w07_close_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_close_sample_vial_s08": {
+          "工艺选择": 4,
+          "样品ID": [
+            111
+          ],
+          "瓶盖暂存位": 1
+        }
+      }
+    },
+    {
+      "sample_id": "Sample K",
+      "order": 16,
+      "template_id": "task_1c_6b0c60b7fa3a4a39a6dda2f08df56ac2",
+      "template_name": "S08 取瓶 等 2 步",
+      "node_ids": [
+        "w07_pick_sample_vial_s08",
+        "w07_place_sample_vial_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_sample_vial_s11": {
+          "product_type": 2,
+          "position": "2-5"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample L",
+      "order": 0,
+      "template_id": "task_w_ae3c6440a875496887ddc9e1e3f988de",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w01_pick_beaker_s03",
+        "w01_place_beaker_s072"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_pick_beaker_s03": {
+          "product_type": 1,
+          "position": "2-6"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample L",
+      "order": 1,
+      "template_id": "task_x_b8833e9573c14ef987962563f83491d7",
+      "template_name": "S07 注粉",
+      "node_ids": [
+        "w01_dose_powder_s07"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_dose_powder_s07": {
+          "coarse_position": 1,
+          "fine_position": 1,
+          "target_weight": 1.0,
+          "recipe_name": "default"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample L",
+      "order": 2,
+      "template_id": "task_y_0ec9afcdcc1246e1a9dbc4caeb10865e",
+      "template_name": "S072 取料 等 2 步",
+      "node_ids": [
+        "w02_pick_beaker_s072",
+        "w02_place_beaker_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample L",
+      "order": 3,
+      "template_id": "task_z_9a599902d061465b8507f47145e13681",
+      "template_name": "S06 泵加液完整流程：烧杯检测 → 液位确认 → 写入工艺参数 → 等待加工完成",
+      "node_ids": [
+        "w02_add_solvent_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample L",
+      "order": 4,
+      "template_id": "task_10_252e5ac2de1e4070bf1a4ab4560361ad",
+      "template_name": "S06 取料 等 2 步",
+      "node_ids": [
+        "w03_pick_beaker_s06",
+        "w03_place_beaker_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample L",
+      "order": 5,
+      "template_id": "task_11_c23cf203e41b45aa9ef1e21946315663",
+      "template_name": "按配置复用或一次性使用 S09 加液 TIP",
+      "node_ids": [
+        "w03_add_liquid_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w03_add_liquid_s09": {
+          "liquid_count": 1,
+          "liquid_additions": [
+            {
+              "liquid_station_index": 1,
+              "solvent_batch_id": "solvent-Sample-L",
+              "volume": 5000,
+              "reuse_tip": false
+            }
+          ],
+          "volume_unit": "raw",
+          "skip_level_check": false,
+          "initialize_tip_inventory": false
+        }
+      }
+    },
+    {
+      "sample_id": "Sample L",
+      "order": 6,
+      "template_id": "task_12_ddf3487bcf334cd2883f57dd539e232f",
+      "template_name": "S09 取料 等 2 步",
+      "node_ids": [
+        "w04_pick_beaker_s09",
+        "w04_place_beaker_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_place_beaker_s04": {
+          "position": 4,
+          "sample_id": "Sample L"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample L",
+      "order": 7,
+      "template_id": "task_13_3913b0c1c62a401faeacea2f1431eeac",
+      "template_name": "执行 S04 磁搅加工",
+      "node_ids": [
+        "w04_run_stirring_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_run_stirring_s04": {
+          "position": 4,
+          "duration": 5.0
+        }
+      }
+    },
+    {
+      "sample_id": "Sample L",
+      "order": 8,
+      "template_id": "task_14_17dc3803b96548348184ab74e5df2aa7",
+      "template_name": "S04 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s04",
+        "w06_place_beaker_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w06_pick_beaker_s04": {
+          "position": 4
+        }
+      }
+    },
+    {
+      "sample_id": "Sample L",
+      "order": 9,
+      "template_id": "task_15_14ec48e0e0a243b3ae3a2f3fb5d5e9cf",
+      "template_name": "执行烧杯姿势拍照检测",
+      "node_ids": [
+        "w06_take_photo_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample L",
+      "order": 10,
+      "template_id": "task_16_5059b9d9471d46b79a37e38e49fc2068",
+      "template_name": "S05 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s05_for_density",
+        "w05_place_beaker_s09_for_density"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample L",
+      "order": 11,
+      "template_id": "task_17_888c089cd83b4b0d9cda634e6657d296",
+      "template_name": "执行 S09 独立密度测量并自动管理一次性 TIP",
+      "node_ids": [
+        "w05_measure_density_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample L",
+      "order": 12,
+      "template_id": "task_18_cb50a0e35a694e48a13305ef829e14fd",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w05_pick_sample_vial_s03",
+        "w05_place_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_pick_sample_vial_s03": {
+          "product_type": 2,
+          "position": "2-6"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample L",
+      "order": 13,
+      "template_id": "task_19_0480d4e88835496c9118fe8e14c3fdf4",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w05_open_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_open_sample_vial_s08": {
+          "工艺选择": 3,
+          "样品ID": [
+            112
+          ],
+          "瓶盖暂存位": 2
+        }
+      }
+    },
+    {
+      "sample_id": "Sample L",
+      "order": 14,
+      "template_id": "task_1a_9245b2850e6844e2b8135ca645c220e5",
+      "template_name": "S09 取料 等 3 步",
+      "node_ids": [
+        "w06_pick_beaker_s09_after_density",
+        "w07_pour_beaker_s08",
+        "w07_place_beaker_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_beaker_s11": {
+          "product_type": 1,
+          "position": "2-6"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample L",
+      "order": 15,
+      "template_id": "task_1b_59510a4a4ba0414790d14cdb36293157",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w07_close_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_close_sample_vial_s08": {
+          "工艺选择": 4,
+          "样品ID": [
+            112
+          ],
+          "瓶盖暂存位": 2
+        }
+      }
+    },
+    {
+      "sample_id": "Sample L",
+      "order": 16,
+      "template_id": "task_1c_6b0c60b7fa3a4a39a6dda2f08df56ac2",
+      "template_name": "S08 取瓶 等 2 步",
+      "node_ids": [
+        "w07_pick_sample_vial_s08",
+        "w07_place_sample_vial_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_sample_vial_s11": {
+          "product_type": 2,
+          "position": "2-6"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample M",
+      "order": 0,
+      "template_id": "task_w_ae3c6440a875496887ddc9e1e3f988de",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w01_pick_beaker_s03",
+        "w01_place_beaker_s072"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_pick_beaker_s03": {
+          "product_type": 1,
+          "position": "3-1"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample M",
+      "order": 1,
+      "template_id": "task_x_b8833e9573c14ef987962563f83491d7",
+      "template_name": "S07 注粉",
+      "node_ids": [
+        "w01_dose_powder_s07"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_dose_powder_s07": {
+          "coarse_position": 1,
+          "fine_position": 1,
+          "target_weight": 1.0,
+          "recipe_name": "default"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample M",
+      "order": 2,
+      "template_id": "task_y_0ec9afcdcc1246e1a9dbc4caeb10865e",
+      "template_name": "S072 取料 等 2 步",
+      "node_ids": [
+        "w02_pick_beaker_s072",
+        "w02_place_beaker_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample M",
+      "order": 3,
+      "template_id": "task_z_9a599902d061465b8507f47145e13681",
+      "template_name": "S06 泵加液完整流程：烧杯检测 → 液位确认 → 写入工艺参数 → 等待加工完成",
+      "node_ids": [
+        "w02_add_solvent_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample M",
+      "order": 4,
+      "template_id": "task_10_252e5ac2de1e4070bf1a4ab4560361ad",
+      "template_name": "S06 取料 等 2 步",
+      "node_ids": [
+        "w03_pick_beaker_s06",
+        "w03_place_beaker_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample M",
+      "order": 5,
+      "template_id": "task_11_c23cf203e41b45aa9ef1e21946315663",
+      "template_name": "按配置复用或一次性使用 S09 加液 TIP",
+      "node_ids": [
+        "w03_add_liquid_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w03_add_liquid_s09": {
+          "liquid_count": 1,
+          "liquid_additions": [
+            {
+              "liquid_station_index": 1,
+              "solvent_batch_id": "solvent-Sample-M",
+              "volume": 5000,
+              "reuse_tip": false
+            }
+          ],
+          "volume_unit": "raw",
+          "skip_level_check": false,
+          "initialize_tip_inventory": false
+        }
+      }
+    },
+    {
+      "sample_id": "Sample M",
+      "order": 6,
+      "template_id": "task_12_ddf3487bcf334cd2883f57dd539e232f",
+      "template_name": "S09 取料 等 2 步",
+      "node_ids": [
+        "w04_pick_beaker_s09",
+        "w04_place_beaker_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_place_beaker_s04": {
+          "position": 1,
+          "sample_id": "Sample M"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample M",
+      "order": 7,
+      "template_id": "task_13_3913b0c1c62a401faeacea2f1431eeac",
+      "template_name": "执行 S04 磁搅加工",
+      "node_ids": [
+        "w04_run_stirring_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_run_stirring_s04": {
+          "position": 1,
+          "duration": 5.0
+        }
+      }
+    },
+    {
+      "sample_id": "Sample M",
+      "order": 8,
+      "template_id": "task_14_17dc3803b96548348184ab74e5df2aa7",
+      "template_name": "S04 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s04",
+        "w06_place_beaker_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w06_pick_beaker_s04": {
+          "position": 1
+        }
+      }
+    },
+    {
+      "sample_id": "Sample M",
+      "order": 9,
+      "template_id": "task_15_14ec48e0e0a243b3ae3a2f3fb5d5e9cf",
+      "template_name": "执行烧杯姿势拍照检测",
+      "node_ids": [
+        "w06_take_photo_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample M",
+      "order": 10,
+      "template_id": "task_16_5059b9d9471d46b79a37e38e49fc2068",
+      "template_name": "S05 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s05_for_density",
+        "w05_place_beaker_s09_for_density"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample M",
+      "order": 11,
+      "template_id": "task_17_888c089cd83b4b0d9cda634e6657d296",
+      "template_name": "执行 S09 独立密度测量并自动管理一次性 TIP",
+      "node_ids": [
+        "w05_measure_density_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample M",
+      "order": 12,
+      "template_id": "task_18_cb50a0e35a694e48a13305ef829e14fd",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w05_pick_sample_vial_s03",
+        "w05_place_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_pick_sample_vial_s03": {
+          "product_type": 2,
+          "position": "3-1"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample M",
+      "order": 13,
+      "template_id": "task_19_0480d4e88835496c9118fe8e14c3fdf4",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w05_open_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_open_sample_vial_s08": {
+          "工艺选择": 3,
+          "样品ID": [
+            113
+          ],
+          "瓶盖暂存位": 3
+        }
+      }
+    },
+    {
+      "sample_id": "Sample M",
+      "order": 14,
+      "template_id": "task_1a_9245b2850e6844e2b8135ca645c220e5",
+      "template_name": "S09 取料 等 3 步",
+      "node_ids": [
+        "w06_pick_beaker_s09_after_density",
+        "w07_pour_beaker_s08",
+        "w07_place_beaker_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_beaker_s11": {
+          "product_type": 1,
+          "position": "3-1"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample M",
+      "order": 15,
+      "template_id": "task_1b_59510a4a4ba0414790d14cdb36293157",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w07_close_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_close_sample_vial_s08": {
+          "工艺选择": 4,
+          "样品ID": [
+            113
+          ],
+          "瓶盖暂存位": 3
+        }
+      }
+    },
+    {
+      "sample_id": "Sample M",
+      "order": 16,
+      "template_id": "task_1c_6b0c60b7fa3a4a39a6dda2f08df56ac2",
+      "template_name": "S08 取瓶 等 2 步",
+      "node_ids": [
+        "w07_pick_sample_vial_s08",
+        "w07_place_sample_vial_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_sample_vial_s11": {
+          "product_type": 2,
+          "position": "3-1"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample N",
+      "order": 0,
+      "template_id": "task_w_ae3c6440a875496887ddc9e1e3f988de",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w01_pick_beaker_s03",
+        "w01_place_beaker_s072"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_pick_beaker_s03": {
+          "product_type": 1,
+          "position": "3-2"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample N",
+      "order": 1,
+      "template_id": "task_x_b8833e9573c14ef987962563f83491d7",
+      "template_name": "S07 注粉",
+      "node_ids": [
+        "w01_dose_powder_s07"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_dose_powder_s07": {
+          "coarse_position": 1,
+          "fine_position": 1,
+          "target_weight": 1.0,
+          "recipe_name": "default"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample N",
+      "order": 2,
+      "template_id": "task_y_0ec9afcdcc1246e1a9dbc4caeb10865e",
+      "template_name": "S072 取料 等 2 步",
+      "node_ids": [
+        "w02_pick_beaker_s072",
+        "w02_place_beaker_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample N",
+      "order": 3,
+      "template_id": "task_z_9a599902d061465b8507f47145e13681",
+      "template_name": "S06 泵加液完整流程：烧杯检测 → 液位确认 → 写入工艺参数 → 等待加工完成",
+      "node_ids": [
+        "w02_add_solvent_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample N",
+      "order": 4,
+      "template_id": "task_10_252e5ac2de1e4070bf1a4ab4560361ad",
+      "template_name": "S06 取料 等 2 步",
+      "node_ids": [
+        "w03_pick_beaker_s06",
+        "w03_place_beaker_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample N",
+      "order": 5,
+      "template_id": "task_11_c23cf203e41b45aa9ef1e21946315663",
+      "template_name": "按配置复用或一次性使用 S09 加液 TIP",
+      "node_ids": [
+        "w03_add_liquid_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w03_add_liquid_s09": {
+          "liquid_count": 1,
+          "liquid_additions": [
+            {
+              "liquid_station_index": 1,
+              "solvent_batch_id": "solvent-Sample-N",
+              "volume": 5000,
+              "reuse_tip": false
+            }
+          ],
+          "volume_unit": "raw",
+          "skip_level_check": false,
+          "initialize_tip_inventory": false
+        }
+      }
+    },
+    {
+      "sample_id": "Sample N",
+      "order": 6,
+      "template_id": "task_12_ddf3487bcf334cd2883f57dd539e232f",
+      "template_name": "S09 取料 等 2 步",
+      "node_ids": [
+        "w04_pick_beaker_s09",
+        "w04_place_beaker_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_place_beaker_s04": {
+          "position": 2,
+          "sample_id": "Sample N"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample N",
+      "order": 7,
+      "template_id": "task_13_3913b0c1c62a401faeacea2f1431eeac",
+      "template_name": "执行 S04 磁搅加工",
+      "node_ids": [
+        "w04_run_stirring_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_run_stirring_s04": {
+          "position": 2,
+          "duration": 5.0
+        }
+      }
+    },
+    {
+      "sample_id": "Sample N",
+      "order": 8,
+      "template_id": "task_14_17dc3803b96548348184ab74e5df2aa7",
+      "template_name": "S04 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s04",
+        "w06_place_beaker_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w06_pick_beaker_s04": {
+          "position": 2
+        }
+      }
+    },
+    {
+      "sample_id": "Sample N",
+      "order": 9,
+      "template_id": "task_15_14ec48e0e0a243b3ae3a2f3fb5d5e9cf",
+      "template_name": "执行烧杯姿势拍照检测",
+      "node_ids": [
+        "w06_take_photo_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample N",
+      "order": 10,
+      "template_id": "task_16_5059b9d9471d46b79a37e38e49fc2068",
+      "template_name": "S05 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s05_for_density",
+        "w05_place_beaker_s09_for_density"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample N",
+      "order": 11,
+      "template_id": "task_17_888c089cd83b4b0d9cda634e6657d296",
+      "template_name": "执行 S09 独立密度测量并自动管理一次性 TIP",
+      "node_ids": [
+        "w05_measure_density_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample N",
+      "order": 12,
+      "template_id": "task_18_cb50a0e35a694e48a13305ef829e14fd",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w05_pick_sample_vial_s03",
+        "w05_place_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_pick_sample_vial_s03": {
+          "product_type": 2,
+          "position": "3-2"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample N",
+      "order": 13,
+      "template_id": "task_19_0480d4e88835496c9118fe8e14c3fdf4",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w05_open_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_open_sample_vial_s08": {
+          "工艺选择": 3,
+          "样品ID": [
+            114
+          ],
+          "瓶盖暂存位": 4
+        }
+      }
+    },
+    {
+      "sample_id": "Sample N",
+      "order": 14,
+      "template_id": "task_1a_9245b2850e6844e2b8135ca645c220e5",
+      "template_name": "S09 取料 等 3 步",
+      "node_ids": [
+        "w06_pick_beaker_s09_after_density",
+        "w07_pour_beaker_s08",
+        "w07_place_beaker_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_beaker_s11": {
+          "product_type": 1,
+          "position": "3-2"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample N",
+      "order": 15,
+      "template_id": "task_1b_59510a4a4ba0414790d14cdb36293157",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w07_close_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_close_sample_vial_s08": {
+          "工艺选择": 4,
+          "样品ID": [
+            114
+          ],
+          "瓶盖暂存位": 4
+        }
+      }
+    },
+    {
+      "sample_id": "Sample N",
+      "order": 16,
+      "template_id": "task_1c_6b0c60b7fa3a4a39a6dda2f08df56ac2",
+      "template_name": "S08 取瓶 等 2 步",
+      "node_ids": [
+        "w07_pick_sample_vial_s08",
+        "w07_place_sample_vial_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_sample_vial_s11": {
+          "product_type": 2,
+          "position": "3-2"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample O",
+      "order": 0,
+      "template_id": "task_w_ae3c6440a875496887ddc9e1e3f988de",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w01_pick_beaker_s03",
+        "w01_place_beaker_s072"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_pick_beaker_s03": {
+          "product_type": 1,
+          "position": "3-3"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample O",
+      "order": 1,
+      "template_id": "task_x_b8833e9573c14ef987962563f83491d7",
+      "template_name": "S07 注粉",
+      "node_ids": [
+        "w01_dose_powder_s07"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w01_dose_powder_s07": {
+          "coarse_position": 1,
+          "fine_position": 1,
+          "target_weight": 1.0,
+          "recipe_name": "default"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample O",
+      "order": 2,
+      "template_id": "task_y_0ec9afcdcc1246e1a9dbc4caeb10865e",
+      "template_name": "S072 取料 等 2 步",
+      "node_ids": [
+        "w02_pick_beaker_s072",
+        "w02_place_beaker_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample O",
+      "order": 3,
+      "template_id": "task_z_9a599902d061465b8507f47145e13681",
+      "template_name": "S06 泵加液完整流程：烧杯检测 → 液位确认 → 写入工艺参数 → 等待加工完成",
+      "node_ids": [
+        "w02_add_solvent_s06"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample O",
+      "order": 4,
+      "template_id": "task_10_252e5ac2de1e4070bf1a4ab4560361ad",
+      "template_name": "S06 取料 等 2 步",
+      "node_ids": [
+        "w03_pick_beaker_s06",
+        "w03_place_beaker_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample O",
+      "order": 5,
+      "template_id": "task_11_c23cf203e41b45aa9ef1e21946315663",
+      "template_name": "按配置复用或一次性使用 S09 加液 TIP",
+      "node_ids": [
+        "w03_add_liquid_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w03_add_liquid_s09": {
+          "liquid_count": 1,
+          "liquid_additions": [
+            {
+              "liquid_station_index": 1,
+              "solvent_batch_id": "solvent-Sample-O",
+              "volume": 5000,
+              "reuse_tip": false
+            }
+          ],
+          "volume_unit": "raw",
+          "skip_level_check": false,
+          "initialize_tip_inventory": false
+        }
+      }
+    },
+    {
+      "sample_id": "Sample O",
+      "order": 6,
+      "template_id": "task_12_ddf3487bcf334cd2883f57dd539e232f",
+      "template_name": "S09 取料 等 2 步",
+      "node_ids": [
+        "w04_pick_beaker_s09",
+        "w04_place_beaker_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_place_beaker_s04": {
+          "position": 3,
+          "sample_id": "Sample O"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample O",
+      "order": 7,
+      "template_id": "task_13_3913b0c1c62a401faeacea2f1431eeac",
+      "template_name": "执行 S04 磁搅加工",
+      "node_ids": [
+        "w04_run_stirring_s04"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w04_run_stirring_s04": {
+          "position": 3,
+          "duration": 5.0
+        }
+      }
+    },
+    {
+      "sample_id": "Sample O",
+      "order": 8,
+      "template_id": "task_14_17dc3803b96548348184ab74e5df2aa7",
+      "template_name": "S04 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s04",
+        "w06_place_beaker_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w06_pick_beaker_s04": {
+          "position": 3
+        }
+      }
+    },
+    {
+      "sample_id": "Sample O",
+      "order": 9,
+      "template_id": "task_15_14ec48e0e0a243b3ae3a2f3fb5d5e9cf",
+      "template_name": "执行烧杯姿势拍照检测",
+      "node_ids": [
+        "w06_take_photo_s05"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample O",
+      "order": 10,
+      "template_id": "task_16_5059b9d9471d46b79a37e38e49fc2068",
+      "template_name": "S05 取料 等 2 步",
+      "node_ids": [
+        "w06_pick_beaker_s05_for_density",
+        "w05_place_beaker_s09_for_density"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample O",
+      "order": 11,
+      "template_id": "task_17_888c089cd83b4b0d9cda634e6657d296",
+      "template_name": "执行 S09 独立密度测量并自动管理一次性 TIP",
+      "node_ids": [
+        "w05_measure_density_s09"
+      ],
+      "priority": "normal",
+      "node_parameters": {}
+    },
+    {
+      "sample_id": "Sample O",
+      "order": 12,
+      "template_id": "task_18_cb50a0e35a694e48a13305ef829e14fd",
+      "template_name": "S03 取容器 等 2 步",
+      "node_ids": [
+        "w05_pick_sample_vial_s03",
+        "w05_place_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_pick_sample_vial_s03": {
+          "product_type": 2,
+          "position": "3-3"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample O",
+      "order": 13,
+      "template_id": "task_19_0480d4e88835496c9118fe8e14c3fdf4",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w05_open_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w05_open_sample_vial_s08": {
+          "工艺选择": 3,
+          "样品ID": [
+            115
+          ],
+          "瓶盖暂存位": 5
+        }
+      }
+    },
+    {
+      "sample_id": "Sample O",
+      "order": 14,
+      "template_id": "task_1a_9245b2850e6844e2b8135ca645c220e5",
+      "template_name": "S09 取料 等 3 步",
+      "node_ids": [
+        "w06_pick_beaker_s09_after_density",
+        "w07_pour_beaker_s08",
+        "w07_place_beaker_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_beaker_s11": {
+          "product_type": 1,
+          "position": "3-3"
+        }
+      }
+    },
+    {
+      "sample_id": "Sample O",
+      "order": 15,
+      "template_id": "task_1b_59510a4a4ba0414790d14cdb36293157",
+      "template_name": "S08 开/关盖",
+      "node_ids": [
+        "w07_close_sample_vial_s08"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_close_sample_vial_s08": {
+          "工艺选择": 4,
+          "样品ID": [
+            115
+          ],
+          "瓶盖暂存位": 5
+        }
+      }
+    },
+    {
+      "sample_id": "Sample O",
+      "order": 16,
+      "template_id": "task_1c_6b0c60b7fa3a4a39a6dda2f08df56ac2",
+      "template_name": "S08 取瓶 等 2 步",
+      "node_ids": [
+        "w07_pick_sample_vial_s08",
+        "w07_place_sample_vial_s11"
+      ],
+      "priority": "normal",
+      "node_parameters": {
+        "w07_place_sample_vial_s11": {
+          "product_type": 2,
+          "position": "3-3"
+        }
+      }
+    }
+  ]
+}

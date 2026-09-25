@@ -1,0 +1,156 @@
+{
+  "initialized": true,
+  "last_operation": null,
+  "max_use_count": 20,
+  "solvents": {},
+  "tip_count": 24,
+  "tip_source_box": 2,
+  "tip_waste_box": 1,
+  "tips": {
+    "1": {
+      "current_box": 1,
+      "solvent_key": null,
+      "status": "exhausted",
+      "use_count": 1
+    },
+    "10": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "11": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "12": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "13": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "14": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "15": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "16": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "17": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "18": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "19": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "2": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "20": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "21": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "22": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "23": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "24": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "3": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "4": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "5": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "6": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "7": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "8": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    },
+    "9": {
+      "current_box": 2,
+      "solvent_key": null,
+      "status": "unused",
+      "use_count": 0
+    }
+  },
+  "version": 1
+}

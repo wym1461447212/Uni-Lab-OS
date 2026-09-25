@@ -1,0 +1,293 @@
+{
+  "description": "15 个样品的 S09 加液入参。reuse_tip 为 false，每次加液列表只有一项。带 take_tip_box_index 的项是运行中换架后写回的位号。",
+  "node_id": "w03_add_liquid_s09",
+  "samples": [
+    {
+      "sample_id": "Sample A",
+      "order": 5,
+      "node_id": "w03_add_liquid_s09",
+      "parameters": {
+        "liquid_count": 1,
+        "liquid_additions": [
+          {
+            "liquid_station_index": 1,
+            "solvent_batch_id": "solvent-Sample-A",
+            "volume": 5000,
+            "reuse_tip": false
+          }
+        ],
+        "volume_unit": "raw",
+        "skip_level_check": false,
+        "initialize_tip_inventory": false,
+        "take_tip_box_index": 2,
+        "release_tip_box_index": 1
+      }
+    },
+    {
+      "sample_id": "Sample B",
+      "order": 5,
+      "node_id": "w03_add_liquid_s09",
+      "parameters": {
+        "liquid_count": 1,
+        "liquid_additions": [
+          {
+            "liquid_station_index": 1,
+            "solvent_batch_id": "solvent-Sample-B",
+            "volume": 5000,
+            "reuse_tip": false
+          }
+        ],
+        "volume_unit": "raw",
+        "skip_level_check": false,
+        "initialize_tip_inventory": false
+      }
+    },
+    {
+      "sample_id": "Sample C",
+      "order": 5,
+      "node_id": "w03_add_liquid_s09",
+      "parameters": {
+        "liquid_count": 1,
+        "liquid_additions": [
+          {
+            "liquid_station_index": 1,
+            "solvent_batch_id": "solvent-Sample-C",
+            "volume": 5000,
+            "reuse_tip": false
+          }
+        ],
+        "volume_unit": "raw",
+        "skip_level_check": false,
+        "initialize_tip_inventory": false
+      }
+    },
+    {
+      "sample_id": "Sample D",
+      "order": 5,
+      "node_id": "w03_add_liquid_s09",
+      "parameters": {
+        "liquid_count": 1,
+        "liquid_additions": [
+          {
+            "liquid_station_index": 1,
+            "solvent_batch_id": "solvent-Sample-D",
+            "volume": 5000,
+            "reuse_tip": false
+          }
+        ],
+        "volume_unit": "raw",
+        "skip_level_check": false,
+        "initialize_tip_inventory": false
+      }
+    },
+    {
+      "sample_id": "Sample E",
+      "order": 5,
+      "node_id": "w03_add_liquid_s09",
+      "parameters": {
+        "liquid_count": 1,
+        "liquid_additions": [
+          {
+            "liquid_station_index": 1,
+            "solvent_batch_id": "solvent-Sample-E",
+            "volume": 5000,
+            "reuse_tip": false
+          }
+        ],
+        "volume_unit": "raw",
+        "skip_level_check": false,
+        "initialize_tip_inventory": false
+      }
+    },
+    {
+      "sample_id": "Sample F",
+      "order": 5,
+      "node_id": "w03_add_liquid_s09",
+      "parameters": {
+        "liquid_count": 1,
+        "liquid_additions": [
+          {
+            "liquid_station_index": 1,
+            "solvent_batch_id": "solvent-Sample-F",
+            "volume": 5000,
+            "reuse_tip": false
+          }
+        ],
+        "volume_unit": "raw",
+        "skip_level_check": false,
+        "initialize_tip_inventory": false
+      }
+    },
+    {
+      "sample_id": "Sample G",
+      "order": 5,
+      "node_id": "w03_add_liquid_s09",
+      "parameters": {
+        "liquid_count": 1,
+        "liquid_additions": [
+          {
+            "liquid_station_index": 1,
+            "solvent_batch_id": "solvent-Sample-G",
+            "volume": 5000,
+            "reuse_tip": false
+          }
+        ],
+        "volume_unit": "raw",
+        "skip_level_check": false,
+        "initialize_tip_inventory": false
+      }
+    },
+    {
+      "sample_id": "Sample H",
+      "order": 5,
+      "node_id": "w03_add_liquid_s09",
+      "parameters": {
+        "liquid_count": 1,
+        "liquid_additions": [
+          {
+            "liquid_station_index": 1,
+            "solvent_batch_id": "solvent-Sample-H",
+            "volume": 5000,
+            "reuse_tip": false
+          }
+        ],
+        "volume_unit": "raw",
+        "skip_level_check": false,
+        "initialize_tip_inventory": false
+      }
+    },
+    {
+      "sample_id": "Sample I",
+      "order": 5,
+      "node_id": "w03_add_liquid_s09",
+      "parameters": {
+        "liquid_count": 1,
+        "liquid_additions": [
+          {
+            "liquid_station_index": 1,
+            "solvent_batch_id": "solvent-Sample-I",
+            "volume": 5000,
+            "reuse_tip": false
+          }
+        ],
+        "volume_unit": "raw",
+        "skip_level_check": false,
+        "initialize_tip_inventory": false
+      }
+    },
+    {
+      "sample_id": "Sample J",
+      "order": 5,
+      "node_id": "w03_add_liquid_s09",
+      "parameters": {
+        "liquid_count": 1,
+        "liquid_additions": [
+          {
+            "liquid_station_index": 1,
+            "solvent_batch_id": "solvent-Sample-J",
+            "volume": 5000,
+            "reuse_tip": false
+          }
+        ],
+        "volume_unit": "raw",
+        "skip_level_check": false,
+        "initialize_tip_inventory": false
+      }
+    },
+    {
+      "sample_id": "Sample K",
+      "order": 5,
+      "node_id": "w03_add_liquid_s09",
+      "parameters": {
+        "liquid_count": 1,
+        "liquid_additions": [
+          {
+            "liquid_station_index": 1,
+            "solvent_batch_id": "solvent-Sample-K",
+            "volume": 5000,
+            "reuse_tip": false
+          }
+        ],
+        "volume_unit": "raw",
+        "skip_level_check": false,
+        "initialize_tip_inventory": false
+      }
+    },
+    {
+      "sample_id": "Sample L",
+      "order": 5,
+      "node_id": "w03_add_liquid_s09",
+      "parameters": {
+        "liquid_count": 1,
+        "liquid_additions": [
+          {
+            "liquid_station_index": 1,
+            "solvent_batch_id": "solvent-Sample-L",
+            "volume": 5000,
+            "reuse_tip": false
+          }
+        ],
+        "volume_unit": "raw",
+        "skip_level_check": false,
+        "initialize_tip_inventory": false
+      }
+    },
+    {
+      "sample_id": "Sample M",
+      "order": 5,
+      "node_id": "w03_add_liquid_s09",
+      "parameters": {
+        "liquid_count": 1,
+        "liquid_additions": [
+          {
+            "liquid_station_index": 1,
+            "solvent_batch_id": "solvent-Sample-M",
+            "volume": 5000,
+            "reuse_tip": false
+          }
+        ],
+        "volume_unit": "raw",
+        "skip_level_check": false,
+        "initialize_tip_inventory": false
+      }
+    },
+    {
+      "sample_id": "Sample N",
+      "order": 5,
+      "node_id": "w03_add_liquid_s09",
+      "parameters": {
+        "liquid_count": 1,
+        "liquid_additions": [
+          {
+            "liquid_station_index": 1,
+            "solvent_batch_id": "solvent-Sample-N",
+            "volume": 5000,
+            "reuse_tip": false
+          }
+        ],
+        "volume_unit": "raw",
+        "skip_level_check": false,
+        "initialize_tip_inventory": false
+      }
+    },
+    {
+      "sample_id": "Sample O",
+      "order": 5,
+      "node_id": "w03_add_liquid_s09",
+      "parameters": {
+        "liquid_count": 1,
+        "liquid_additions": [
+          {
+            "liquid_station_index": 1,
+            "solvent_batch_id": "solvent-Sample-O",
+            "volume": 5000,
+            "reuse_tip": false
+          }
+        ],
+        "volume_unit": "raw",
+        "skip_level_check": false,
+        "initialize_tip_inventory": false
+      }
+    }
+  ]
+}
