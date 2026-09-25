@@ -949,6 +949,7 @@ def test_szlab_robot_action_workflow_preset_includes_s03_to_s07_devices():
         "read_balance",
         "initialize_reusable_tip_inventory",
         "can_allocate_reusable_tip",
+        "can_allocate_single_use_tip",
         "get_reusable_tip_status",
         "get_pipetting_status",
     ]
@@ -968,6 +969,8 @@ def test_szlab_robot_action_workflow_preset_includes_s03_to_s07_devices():
         "liquid_additions",
         "initialize_tip_inventory",
         "initial_used_tip_count",
+        "take_tip_box_index",
+        "release_tip_box_index",
     ]
     density_snapshot = collect_snapshot_variables(
         "measure_density",

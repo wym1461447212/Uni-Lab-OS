@@ -17,8 +17,9 @@ from scripts.run_workflow_local import (
 )
 from scripts.s09_tip_box_change import (
     ROBOT_DEVICE_ID,
-    S09_LIQUID_NODE_ID,
     STATION_DEVICE_ID,
+    TIP_INVENTORY_METHODS,
+    TIP_RACK_PARAMETER_METHODS,
     execute_tip_box_change,
     reusable_tip_query_kwargs,
 )
@@ -155,10 +156,21 @@ class TaskApiConflict(RuntimeError):
         self.code = code
 
 
-def deterministic_execution_id(instance_id: str, cursor: int, node_id: str) -> str:
-    """根据服务端权威游标生成可跨进程重放的执行 ID。"""
-    identity = f"{instance_id}\0{cursor}\0{node_id}".encode()
-    return f"task-action-{hashlib.sha256(identity).hexdigest()[:32]}"
+def deterministic_execution_id(
+    instance_id: str,
+    cursor: int,
+    node_id: str,
+    attempt: int = 0,
+) -> str:
+    """根据服务端权威游标生成可跨进程重放的执行 ID。
+
+    attempt 为 0 时保持原 ID，便于恢复仍在执行的第一次尝试。
+    已失败或已成功的尝试要递增，避免新的执行撞上旧记录。
+    """
+    identity = f"{instance_id}\0{cursor}\0{node_id}"
+    if attempt:
+        identity = f"{identity}\0{int(attempt)}"
+    return f"task-action-{hashlib.sha256(identity.encode()).hexdigest()[:32]}"
 
 
 def _append_diagnostic(
@@ -1012,6 +1024,23 @@ class _TipBoxChange:
     template_id: str
     lock_keys: frozenset[str]
     workflow_path: str = ""
+    patches_rack_parameters: bool = False
+
+
+def _query_tip_allocation(station: Any, node: WorkflowNode) -> dict[str, Any] | None:
+    """按动作方法做只读 TIP 库存判断。不消耗 TIP 的动作返回 None。"""
+    method = node_method(node)
+    if method == "add_liquid_with_reusable_tip":
+        query = getattr(station, "can_allocate_reusable_tip", None)
+        if not callable(query):
+            return None
+        return query(**reusable_tip_query_kwargs(node))
+    if method == "measure_density":
+        query = getattr(station, "can_allocate_single_use_tip", None)
+        if not callable(query):
+            return None
+        return query(count=1)
+    return None
 
 
 @dataclass
@@ -1304,7 +1333,7 @@ class TaskExecutionCoordinator:
                 pending_tip_racks = self._tip_param_overrides.get(instance_id)
                 if (
                     node is not None
-                    and node_id == S09_LIQUID_NODE_ID
+                    and node_method(node) in TIP_RACK_PARAMETER_METHODS
                     and pending_tip_racks
                 ):
                     node = replace(node, param={**node.param, **pending_tip_racks})
@@ -1353,8 +1382,18 @@ class TaskExecutionCoordinator:
                             next_node,
                             param={**next_node.param, "position": free_position},
                         )
+                prior_terminal_attempts = sum(
+                    1
+                    for record in (state.get("records") or [])
+                    if isinstance(record, dict)
+                    and str(record.get("node_id") or "") == node_id
+                    and record.get("status") in {"failed", "succeeded"}
+                )
                 execution_id = deterministic_execution_id(
-                    str(instance.get("id")), cursor, node_id
+                    str(instance.get("id")),
+                    cursor,
+                    node_id,
+                    prior_terminal_attempts,
                 )
                 if execution_id in self._reported_execution_ids:
                     continue
@@ -1423,13 +1462,14 @@ class TaskExecutionCoordinator:
                         node_id=node_id,
                     )
                     continue
-                if self._defer_add_liquid_for_tip_change(
+                if self._defer_tip_action_for_box_change(
                     stats,
                     instance=instance,
                     node=node,
                     node_id=node_id,
                     devices=devices,
                     busy_concurrency_keys=busy_concurrency_keys,
+                    continuation_device_owners=continuation_device_owners,
                     workflow_path=workflow_path,
                 ):
                     continue
@@ -1529,7 +1569,7 @@ class TaskExecutionCoordinator:
                         node_id=node_id,
                     )
                     continue
-                if node_id == S09_LIQUID_NODE_ID:
+                if node is not None and node_method(node) in TIP_RACK_PARAMETER_METHODS:
                     self._tip_param_overrides.pop(instance_id, None)
                 current_response = claimed_response
                 stats["claimed"] = int(stats["claimed"]) + 1
@@ -1933,7 +1973,7 @@ class TaskExecutionCoordinator:
                     alarm=active_alarms[0],
                 )
 
-    def _defer_add_liquid_for_tip_change(
+    def _defer_tip_action_for_box_change(
         self,
         stats: dict[str, Any],
         *,
@@ -1942,10 +1982,11 @@ class TaskExecutionCoordinator:
         node_id: str,
         devices: dict[str, Any],
         busy_concurrency_keys: set[str],
+        continuation_device_owners: dict[str, str],
         workflow_path: str,
     ) -> bool:
-        """没 TIP 时阻塞加液，并插入更高优先级的换料架流程。"""
-        if node is None or node.uuid != S09_LIQUID_NODE_ID:
+        """没 TIP 时阻塞用 TIP 的动作，并插入更高优先级的换料架流程。"""
+        if node is None or node_method(node) not in TIP_INVENTORY_METHODS:
             return False
         instance_id = str(instance.get("id"))
         if instance_id in self._tip_change_blocked:
@@ -1962,11 +2003,8 @@ class TaskExecutionCoordinator:
             )
             return True
         station = devices.get(STATION_DEVICE_ID)
-        query = getattr(station, "can_allocate_reusable_tip", None)
-        if not callable(query):
-            return False
         try:
-            allocation = query(**reusable_tip_query_kwargs(node))
+            allocation = _query_tip_allocation(station, node)
         except Exception as exc:
             _append_diagnostic(
                 stats,
@@ -2008,6 +2046,25 @@ class TaskExecutionCoordinator:
             )
             return True
         lock_keys = {ROBOT_DEVICE_ID, STATION_DEVICE_ID}
+        continuation_owner = next(
+            (
+                continuation_device_owners.get(device_id)
+                for device_id in (ROBOT_DEVICE_ID, STATION_DEVICE_ID)
+                if continuation_device_owners.get(device_id) not in {None, instance_id}
+            ),
+            None,
+        )
+        if continuation_owner is not None:
+            _append_diagnostic(
+                stats,
+                instance=instance,
+                code="device_continuation_owned",
+                message="换 TIP 盒需要的机械臂或 S09 正由另一样品的后续动作占用",
+                node=node,
+                node_id=node_id,
+                detail={"owner_instance_id": continuation_owner},
+            )
+            return True
         if lock_keys & busy_concurrency_keys:
             _append_diagnostic(
                 stats,
@@ -2095,13 +2152,19 @@ class TaskExecutionCoordinator:
             template_id=str(instance.get("template_id") or ""),
             lock_keys=frozenset(lock_keys),
             workflow_path=workflow_path,
+            patches_rack_parameters=node_method(node) in TIP_RACK_PARAMETER_METHODS,
         )
         busy_concurrency_keys.update(lock_keys)
+        action_name = str(node.name or node_method(node))
         _append_diagnostic(
             stats,
             instance=instance,
             code="tip_box_change_started",
-            message="S09 没有可分配 TIP，加液已阻塞，并插入更高优先级的换料架流程",
+            message=(
+                f"S09 没有可分配 TIP，{action_name}已阻塞，并插入更高优先级的换料架流程："
+                f"S09 {waste_position} 号架放到 S02 {int(place_position)} 号，"
+                f"再从 S02 {int(pick_position)} 号取满架放回 S09"
+            ),
             node=node,
             node_id=node_id,
             detail={
@@ -2201,13 +2264,14 @@ class TaskExecutionCoordinator:
                 "take_tip_box_index": source_box,
                 "release_tip_box_index": waste_box,
             }
-            self._tip_param_overrides[instance_id] = parameter_patch
-            self._persist_blocked_tip_parameters(
-                stats,
-                instance=instance,
-                job=job,
-                parameters=parameter_patch,
-            )
+            if job.patches_rack_parameters:
+                self._tip_param_overrides[instance_id] = parameter_patch
+                self._persist_blocked_tip_parameters(
+                    stats,
+                    instance=instance,
+                    job=job,
+                    parameters=parameter_patch,
+                )
             _append_diagnostic(
                 stats,
                 instance=instance,
@@ -2215,7 +2279,7 @@ class TaskExecutionCoordinator:
                 message=(
                     "上料流程把满料架放到 "
                     f"{source_box} 号，废料架为 {waste_box} 号，"
-                    "阻塞中的加液已改用这两个位"
+                    "阻塞中的动作可以继续"
                 ),
                 node_id=job.node_id,
                 severity="info",

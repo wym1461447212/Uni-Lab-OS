@@ -891,6 +891,7 @@ def test_execution_id_is_deterministic_and_cursor_sensitive():
     assert first == deterministic_execution_id("instance-1", 2, "node-3")
     assert first != deterministic_execution_id("instance-1", 3, "node-3")
     assert first != deterministic_execution_id("instance-2", 2, "node-3")
+    assert first != deterministic_execution_id("instance-1", 2, "node-3", 1)
 
 
 def test_dispatch_preflight_error_codes_are_stable():
@@ -3092,6 +3093,15 @@ class _TipStation:
             "message": "可以加液" if self.ready else "盒1没有可分配的新 TIP",
         }
 
+    def can_allocate_single_use_tip(self, count: int = 1):
+        assert count == 1
+        return {
+            "success": True,
+            "can_allocate": self.ready,
+            "needs_box_change": not self.ready,
+            "message": "可以测密度" if self.ready else "盒1没有可分配的新 TIP",
+        }
+
     def tip_rack_positions(self):
         return {"source": self.source, "waste": self.waste}
 
@@ -3119,6 +3129,9 @@ class _TipStation:
         }
 
     def add_liquid_with_reusable_tip(self, **_kwargs):
+        return {"success": True}
+
+    def measure_density(self, **_kwargs):
         return {"success": True}
 
 
@@ -3249,6 +3262,140 @@ def test_full_rack_follows_the_loading_place_position_not_a_fixed_swap():
         "release_tip_box_index": 2,
     }
     assert finished["diagnostics"][0]["detail"]["full_box_position"] == 1
+    coordinator.shutdown()
+
+
+def _density_workspace():
+    response = _workspace_response(
+        node_ids=["w05_place_beaker_s09_for_density", "w05_measure_density_s09"]
+    )
+    state = response["workspace"]["task_instances"][0]["execution_state"]
+    state["cursor"] = 1
+    state["records"] = [
+        {
+            "node_id": "w05_place_beaker_s09_for_density",
+            "status": "succeeded",
+            "finished_at": 1,
+        }
+    ]
+    return response
+
+
+DENSITY_NODE = WorkflowNode(
+    uuid="w05_measure_density_s09",
+    name="S09 测密度",
+    device_name="szlab_mixer_pipetting_station",
+    method="measure_density",
+    param={"measurement_count": 1},
+    legacy_route_compatible=False,
+)
+
+
+def test_empty_tip_box_changes_box_before_measure_density_is_claimed():
+    client = FakeTaskClient(_density_workspace())
+    calls = []
+    station = _TipStation()
+    robot = _TipRobot(calls)
+    ran = []
+
+    def runner(node, _devices, _action):
+        ran.append(dict(node.param))
+        return {"success": True}
+
+    coordinator = _coordinator(
+        client,
+        runner,
+        {
+            "szlab_mixer_pipetting_station": station,
+            "szlab_mixer_robot": robot,
+        },
+    )
+
+    first = coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[DENSITY_NODE])
+    _wait_tip_change(coordinator)
+    second = coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[DENSITY_NODE])
+
+    assert first["claimed"] == 0
+    assert client.failed == []
+    assert client.parameter_updates == []
+    assert [item["code"] for item in first["diagnostics"]] == ["tip_box_change_started"]
+    assert calls == [
+        ("submit_pick_from_s09", 1, 2),
+        ("submit_place_to_s02", 2),
+        ("submit_pick_from_s02", 5),
+        ("submit_place_to_s09", 1, 2),
+    ]
+    assert station.resets == [("finish", 2, 1)]
+    assert second["claimed"] == 1
+    assert [item["code"] for item in second["diagnostics"]] == ["tip_box_change_finished"]
+    deadline = time.monotonic() + 2
+    while not ran and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert ran == [{"measurement_count": 1}]
+    assert client.failed == []
+    coordinator.shutdown()
+
+
+def test_retried_density_claims_a_new_execution_after_the_previous_attempt_failed():
+    response = _density_workspace()
+    state = response["workspace"]["task_instances"][0]["execution_state"]
+    failed_id = deterministic_execution_id("instance-1", 0, "w05_measure_density_s09")
+    state["records"].append({
+        "node_id": "w05_measure_density_s09",
+        "status": "failed",
+        "execution_id": failed_id,
+        "finished_at": 2,
+    })
+    client = FakeTaskClient(response)
+    station = _TipStation()
+    station.ready = True
+    coordinator = _coordinator(
+        client,
+        lambda *_args: {"success": True},
+        {
+            "szlab_mixer_pipetting_station": station,
+            "szlab_mixer_robot": _TipRobot([]),
+        },
+    )
+
+    result = coordinator.cycle(
+        workflow_path=WORKFLOW_PATH,
+        workflow_nodes=[DENSITY_NODE],
+    )
+
+    assert result["claimed"] == 1
+    assert client.failed == []
+    assert client.claims[0]["execution_id"] != failed_id
+    coordinator.shutdown()
+
+
+def test_failed_tip_box_change_does_not_fail_or_retry_the_density_action():
+    client = FakeTaskClient(_density_workspace())
+    station = _TipStation(safe_success=False)
+    calls = []
+    robot = _TipRobot(calls)
+    coordinator = _coordinator(
+        client,
+        lambda *_args: {"success": True},
+        {
+            "szlab_mixer_pipetting_station": station,
+            "szlab_mixer_robot": robot,
+        },
+    )
+
+    coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[DENSITY_NODE])
+    _wait_tip_change(coordinator)
+    failed = coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[DENSITY_NODE])
+    retried = coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[DENSITY_NODE])
+
+    assert client.claims == []
+    assert client.failed == []
+    assert client.parameter_updates == []
+    assert calls == []
+    assert failed["claimed"] == 0
+    assert retried["claimed"] == 0
+    assert {item["code"] for item in failed["diagnostics"]} == {"tip_box_change_failed"}
+    assert [item["code"] for item in retried["diagnostics"]] == ["tip_box_change_failed"]
     coordinator.shutdown()
 
 

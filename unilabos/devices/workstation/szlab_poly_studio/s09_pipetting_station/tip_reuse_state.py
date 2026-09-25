@@ -354,6 +354,39 @@ class ReusableTipStateStore:
                 "unused_tip_count": unused_tip_count,
             }
 
+    def can_allocate_single_use_tips(self, count: int = 1) -> dict[str, Any]:
+        """只读判断还能不能分出一次性 TIP，不写库存。"""
+        with self._lock:
+            unused_tip_count = self._unused_tip_count_locked()
+            if not self._state["initialized"]:
+                return {
+                    "can_allocate": False,
+                    "needs_box_change": False,
+                    "reason": "not_initialized",
+                    "unused_tip_count": unused_tip_count,
+                }
+            required = int(count)
+            if required <= 0:
+                return {
+                    "can_allocate": False,
+                    "needs_box_change": False,
+                    "reason": "invalid_cycles",
+                    "unused_tip_count": unused_tip_count,
+                }
+            if unused_tip_count < required:
+                return {
+                    "can_allocate": False,
+                    "needs_box_change": True,
+                    "reason": "box_empty",
+                    "unused_tip_count": unused_tip_count,
+                }
+            return {
+                "can_allocate": True,
+                "needs_box_change": False,
+                "reason": "ok",
+                "unused_tip_count": unused_tip_count,
+            }
+
     def record_last_operation(
         self,
         *,

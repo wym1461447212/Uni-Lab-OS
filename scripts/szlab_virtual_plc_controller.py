@@ -4,12 +4,17 @@
 通过 OPC UA 客户端读写变量，不持有服务器对象。机器人任务完成前，
 先按设备驱动的后置传感器和夹爪条件改写在位，再回写 Robot_任务完成。
 工位加工完成也按各驱动的握手（新周期下降沿 + 上升沿，或工艺号回显）回写。
+
+时间模式：
+- real：磁搅等写了加工时间的工位，按 PLC 中的时长保持完成位为假，到点再拉高。
+- fast：调试默认。同样先拉低再拉高，但计时等待压到很短，只保留信号变化。
 """
 
 from __future__ import annotations
 
 import argparse
 import logging
+import os
 import signal
 import time
 from typing import Any, Callable
@@ -45,6 +50,45 @@ from unilabos.devices.workstation.szlab_poly_studio.sensor import S05Sensors, S0
 
 
 LOGGER = logging.getLogger("szlab-virtual-plc-controller")
+TIME_MODE_FAST = "fast"
+TIME_MODE_REAL = "real"
+TIME_MODES = (TIME_MODE_FAST, TIME_MODE_REAL)
+# 调试模式仍留出下降沿到上升沿的间隔，避免完成位在同一拍里翻转后被驱动漏看。
+FAST_COMPLETION_SECONDS = 0.2
+# 驱动写入的是毫秒，见 s04 磁搅 duration_ms。
+_S04_DURATION_MS_BY_DONE = {
+    "S041加工完成": "磁搅时间设置_上位机[0]",
+    "S042加工完成": "磁搅时间设置_上位机[1]",
+    "S043加工完成": "磁搅时间设置_上位机[2]",
+    "S044加工完成": "磁搅时间设置_上位机[3]",
+}
+
+
+def _arm_socket_timeout(client: Client, timeout: float) -> None:
+    try:
+        sock = client.uaclient._uasocket._socket.socket
+        sock.settimeout(timeout)
+    except Exception:
+        LOGGER.warning("设置虚拟 PLC 套接字读超时失败", exc_info=True)
+
+
+def _connection_error(exc: BaseException) -> bool:
+    text = f"{type(exc).__name__}: {exc}"
+    markers = (
+        "Timeout",
+        "timed out",
+        "BadSession",
+        "BadSecureChannel",
+        "BadConnection",
+        "BadCommunication",
+        "Connection reset",
+        "Connection aborted",
+        "Broken pipe",
+        "EOFError",
+        "Socket is closed",
+        "Bad file descriptor",
+    )
+    return any(marker in text for marker in markers)
 DEFAULT_ENDPOINT = "opc.tcp://127.0.0.1:4840/"
 _NODE_PREFIX = "ns=4;s=上位机通讯|"
 _SPEC_BY_NUMBER = {spec.task_number: spec for spec in ROBOT_ACTION_SPECS.values()}
@@ -106,32 +150,134 @@ _PRODUCT_GRIPPER = {
 }
 
 
+def resolve_time_mode(value: str | None) -> str:
+    mode = (value or TIME_MODE_FAST).strip().lower()
+    if mode not in TIME_MODES:
+        allowed = "、".join(TIME_MODES)
+        raise ValueError(f"虚拟时间模式必须是 {allowed}，收到 {value!r}")
+    return mode
+
+
+def process_completion_delay(
+    time_mode: str,
+    duration_ms: int | None,
+    *,
+    fast_seconds: float = FAST_COMPLETION_SECONDS,
+) -> float:
+    """真实模式使用配方时长；调试模式忽略配方，只保留一段很短的完成沿间隔。"""
+    mode = resolve_time_mode(time_mode)
+    dwell = max(0.0, float(fast_seconds))
+    if mode == TIME_MODE_REAL:
+        millis = int(duration_ms or 0)
+        if millis > 0:
+            return millis / 1000.0
+    return dwell
+
+
+def step_new_cycle_done(
+    *,
+    written: bool,
+    done: bool,
+    state: str,
+    due_at: float | None,
+    now: float,
+    delay: float,
+) -> tuple[bool | None, str, float | None]:
+    """推进新周期完成握手。返回 (要写入的完成位, 新状态, 到期时间)。
+
+    写入期间先保持完成位为假，到期后再拉高。未写入时把完成位拉回假，供下一轮使用。
+    """
+    if written:
+        if state == "idle":
+            deadline = now + max(0.0, delay)
+            if done:
+                return False, "armed", deadline
+            return None, "armed", deadline
+        if state == "armed":
+            deadline = now if due_at is None else due_at
+            if now < deadline:
+                if done:
+                    return False, "armed", deadline
+                return None, "armed", deadline
+            return True, "pulsed", deadline
+        return None, state, due_at
+    if done:
+        return False, "idle", None
+    return None, "idle", None
+
+
 class VirtualPlcController:
-    def __init__(self, endpoint: str, poll_interval: float = 0.1) -> None:
+    def __init__(
+        self,
+        endpoint: str,
+        poll_interval: float = 0.4,
+        time_mode: str = TIME_MODE_FAST,
+        fast_completion_seconds: float = FAST_COMPLETION_SECONDS,
+    ) -> None:
         self.endpoint = endpoint
         self.poll_interval = poll_interval
+        self.time_mode = resolve_time_mode(time_mode)
+        self.fast_completion_seconds = max(0.0, float(fast_completion_seconds))
         self._client: Client | None = None
         self._nodes: dict[str, Any] = {}
         self._echo_ready_at: dict[str, float] = {}
         self._bool_cycle: dict[str, str] = {}
+        self._cycle_due_at: dict[str, float] = {}
         self._stop = False
 
     def serve(self) -> None:
-        # 默认 4 秒套接字超时会在虚拟服务器繁忙时丢响应，序号错位后会话只能重连。
-        client = Client(self.endpoint, timeout=30)
-        client.connect()
-        self._client = client
-        LOGGER.info("控制进程已连接虚拟 PLC: %s", self.endpoint)
+        # python-opcua 连接后会把套接字超时清掉。响应丢失时接收线程永久阻塞，
+        # 节拍不再完成机器人/工位握手。读超时后丢弃会话并重连。
+        client: Client | None = None
         try:
             while not self._stop:
+                if client is None:
+                    try:
+                        client = self._connect_client()
+                    except Exception:
+                        LOGGER.exception("虚拟 PLC 控制进程连接失败")
+                        time.sleep(1.0)
+                        continue
                 try:
                     self._tick()
                 except Exception:
-                    LOGGER.exception("虚拟 PLC 控制节拍失败")
+                    LOGGER.exception("虚拟 PLC 控制节拍失败，准备重连")
+                    self._drop_client(client)
+                    client = None
+                    time.sleep(0.5)
+                    continue
                 time.sleep(self.poll_interval)
         finally:
-            client.disconnect()
+            if client is not None:
+                self._drop_client(client)
             LOGGER.info("控制进程已断开")
+
+    def _connect_client(self) -> Client:
+        client = Client(self.endpoint, timeout=8)
+        client.connect()
+        _arm_socket_timeout(client, 8)
+        self._client = client
+        self._nodes.clear()
+        self._echo_ready_at.clear()
+        self._bool_cycle.clear()
+        self._cycle_due_at.clear()
+        if self.time_mode == TIME_MODE_REAL:
+            LOGGER.info("控制进程已连接虚拟 PLC: %s，时间模式=真实", self.endpoint)
+        else:
+            LOGGER.info(
+                "控制进程已连接虚拟 PLC: %s，时间模式=调试，计时等待 %.2f 秒内完成",
+                self.endpoint,
+                self.fast_completion_seconds,
+            )
+        return client
+
+    def _drop_client(self, client: Client) -> None:
+        self._client = None
+        self._nodes.clear()
+        try:
+            client.disconnect()
+        except Exception:
+            LOGGER.debug("断开虚拟 PLC 控制连接失败", exc_info=True)
 
     def stop(self) -> None:
         self._stop = True
@@ -210,23 +356,47 @@ class VirtualPlcController:
             return
         self._write(sensor, process_type in OPEN_PROCESS_IDS)
 
+    def _process_delay(self, done_name: str) -> float:
+        duration_ms = 0
+        if self.time_mode == TIME_MODE_REAL:
+            variable = _S04_DURATION_MS_BY_DONE.get(done_name)
+            if variable:
+                duration_ms = self._read_int(variable)
+        return process_completion_delay(
+            self.time_mode,
+            duration_ms,
+            fast_seconds=self.fast_completion_seconds,
+        )
+
     def _pulse_new_cycle_done(self, written_name: str, done_name: str) -> None:
-        """匹配 wait_new_cycle_done：若完成位已是 True，先拉低再拉高。"""
+        """匹配 wait_new_cycle_done：完成位先为假，到期后再拉高。"""
         written = self._read_bool(written_name)
         done = self._read_bool(done_name)
         state = self._bool_cycle.get(done_name, "idle")
-        if written:
-            if state == "idle":
-                if done:
-                    self._write(done_name, False)
-                self._bool_cycle[done_name] = "armed"
-            elif state == "armed" and not done:
-                self._write(done_name, True)
-                self._bool_cycle[done_name] = "pulsed"
-            return
-        if done:
-            self._write(done_name, False)
-        self._bool_cycle[done_name] = "idle"
+        due_at = self._cycle_due_at.get(done_name)
+        delay = self._process_delay(done_name) if written and state == "idle" else 0.0
+        write_done, new_state, new_due = step_new_cycle_done(
+            written=written,
+            done=done,
+            state=state,
+            due_at=due_at,
+            now=time.monotonic(),
+            delay=delay,
+        )
+        if write_done is not None and write_done != done:
+            self._write(done_name, write_done)
+        self._bool_cycle[done_name] = new_state
+        if new_due is None:
+            self._cycle_due_at.pop(done_name, None)
+        else:
+            self._cycle_due_at[done_name] = new_due
+        if (
+            written
+            and state == "idle"
+            and self.time_mode == TIME_MODE_REAL
+            and delay > self.fast_completion_seconds
+        ):
+            LOGGER.info("%s 按真实时间等待 %.2f 秒后置完成", done_name, delay)
 
     def _node(self, name: str) -> Any:
         cached = self._nodes.get(name)
@@ -241,7 +411,9 @@ class VirtualPlcController:
         try:
             node = self._node(name)
             variant_type = node.get_data_type_as_variant_type()
-        except Exception:
+        except Exception as exc:
+            if _connection_error(exc):
+                raise
             LOGGER.warning("虚拟 PLC 没有变量 %s，跳过写入", name)
             return
         if variant_type == ua.VariantType.Boolean:
@@ -252,18 +424,27 @@ class VirtualPlcController:
             typed = float(value)
         else:
             typed = value
-        node.set_value(ua.Variant(typed, variant_type))
+        try:
+            node.set_value(ua.Variant(typed, variant_type))
+        except Exception as exc:
+            if _connection_error(exc):
+                raise
+            LOGGER.warning("虚拟 PLC 写入 %s 失败: %s", name, exc)
 
     def _read_bool(self, name: str) -> bool:
         try:
             return bool(self._node(name).get_value())
-        except Exception:
+        except Exception as exc:
+            if _connection_error(exc):
+                raise
             return False
 
     def _read_int(self, name: str) -> int:
         try:
             return int(self._node(name).get_value() or 0)
-        except Exception:
+        except Exception as exc:
+            if _connection_error(exc):
+                raise
             return 0
 
 
@@ -356,10 +537,26 @@ def slot_key(slot_number: int) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description="启动 SZLab 虚拟 PLC 控制进程")
     parser.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
+    parser.add_argument(
+        "--time-mode",
+        choices=TIME_MODES,
+        default=os.environ.get("UNILABOS_VIRTUAL_TIME_MODE", TIME_MODE_FAST),
+        help="real=按磁搅等配方时间等待；fast=调试，短时间内完成并保留完成沿",
+    )
+    parser.add_argument(
+        "--fast-completion-seconds",
+        type=float,
+        default=FAST_COMPLETION_SECONDS,
+        help="调试模式下，完成位拉低到拉高之间的间隔（秒）",
+    )
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     logging.getLogger("opcua").setLevel(logging.WARNING)
-    controller = VirtualPlcController(args.endpoint)
+    controller = VirtualPlcController(
+        args.endpoint,
+        time_mode=args.time_mode,
+        fast_completion_seconds=args.fast_completion_seconds,
+    )
 
     def _stop(_signum: int, _frame: Any) -> None:
         controller.stop()

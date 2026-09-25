@@ -69,6 +69,18 @@ export type TaskLogSession = {
   actionAfterSeq: number;
 };
 
+export function sessionForProcessLogs(
+  current: TaskLogSession | null,
+  latestSeq: number,
+  now: number = Date.now(),
+): TaskLogSession {
+  if (current && current.actionAfterSeq <= latestSeq) return current;
+  return {
+    startedAt: now,
+    actionAfterSeq: 0,
+  };
+}
+
 const TASK_LOG_CATEGORY_LABELS: Record<TaskExecutionLogCategory, string> = {
   schedule: '调度',
   action: 'Action',

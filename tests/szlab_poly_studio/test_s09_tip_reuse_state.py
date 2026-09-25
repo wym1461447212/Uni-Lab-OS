@@ -38,6 +38,10 @@ def test_can_allocate_is_read_only_and_requests_box_change_when_box_is_empty(tmp
     }
     assert store.snapshot() == before
 
+    single_use = store.can_allocate_single_use_tips(1)
+    assert single_use == empty
+    assert store.snapshot() == before
+
 
 def test_can_allocate_reuses_bound_tip_without_taking_a_new_one(tmp_path):
     store = ReusableTipStateStore(tmp_path / "tip_state.json", tip_count=1)

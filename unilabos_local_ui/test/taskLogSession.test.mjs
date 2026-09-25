@@ -27,6 +27,7 @@ const {
   filterTaskLogLines,
   formatTaskLogMetadata,
   isTaskLogRecovery,
+  sessionForProcessLogs,
   taskLogCategoryLabel,
   taskLogPhaseLabel,
 } = await importTypeScriptModule(
@@ -343,3 +344,16 @@ assert.match(schedulerStyles, /\.scheduler-bench__state\.running \{ background: 
 assert.match(schedulerStyles, /\.scheduler-bench__state\.completed \{ background: var\(--green-bg\); color: var\(--green\); \}/);
 assert.match(schedulerStyles, /\.scheduler-bench__state\.failed \{ background: var\(--red-bg\); color: var\(--red\); \}/);
 assert.match(schedulerStyles, /\.scheduler-bench__state\.cancelled \{\s*background: repeating-linear-gradient/);
+
+assert.deepEqual(
+  sessionForProcessLogs(null, 108, 5000),
+  { startedAt: 5000, actionAfterSeq: 0 },
+);
+assert.deepEqual(
+  sessionForProcessLogs({ startedAt: 50, actionAfterSeq: 133 }, 108, 5000),
+  { startedAt: 5000, actionAfterSeq: 0 },
+);
+assert.deepEqual(
+  sessionForProcessLogs({ startedAt: 50, actionAfterSeq: 10 }, 108, 5000),
+  { startedAt: 50, actionAfterSeq: 10 },
+);

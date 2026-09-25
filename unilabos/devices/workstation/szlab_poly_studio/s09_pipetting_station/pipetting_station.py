@@ -1668,6 +1668,23 @@ class SzlabMixerPipettingStationDevice:
             **allocation,
         }
 
+    @action(auto_prefix=True, description="判断一次性 TIP 动作能否分到 TIP，不修改库存")
+    def can_allocate_single_use_tip(self, count: int = 1) -> dict[str, Any]:
+        try:
+            allocation = self._tip_reuse_state.can_allocate_single_use_tips(int(count))
+        except (TypeError, ValueError, RuntimeError) as exc:
+            return {
+                "success": False,
+                "can_allocate": False,
+                "needs_box_change": False,
+                "message": str(exc),
+            }
+        return {
+            "success": True,
+            "message": "S09 TIP 可以分配" if allocation["can_allocate"] else "S09 TIP 暂不可分配",
+            **allocation,
+        }
+
     @not_action
     def _reusable_tip_operations(
         self,

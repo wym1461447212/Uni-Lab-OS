@@ -1,4 +1,4 @@
-"""S09 加液前的换 TIP 盒动作序列。"""
+"""S09 用 TIP 动作前的换 TIP 盒动作序列。"""
 
 from __future__ import annotations
 
@@ -8,6 +8,16 @@ from unilabos.app.scheduler.service import build_tip_box_change_workflow
 
 
 S09_LIQUID_NODE_ID = "w03_add_liquid_s09"
+S09_DENSITY_NODE_ID = "w05_measure_density_s09"
+# 这些动作会从 TIP 库存取头。盒空时都要先换盒，再认领。
+TIP_INVENTORY_METHODS = frozenset({
+    "add_liquid_with_reusable_tip",
+    "measure_density",
+})
+# 加液动作把取放料架写进参数；测密度执行时直接读换盒后的库存。
+TIP_RACK_PARAMETER_METHODS = frozenset({
+    "add_liquid_with_reusable_tip",
+})
 STATION_DEVICE_ID = "szlab_mixer_pipetting_station"
 ROBOT_DEVICE_ID = "szlab_mixer_robot"
 _TIP_QUERY_KEYS = (

@@ -82,6 +82,7 @@ import {
 } from './taskActionLog';
 import {
   buildTaskLogLines,
+  sessionForProcessLogs,
   type TaskLogSession,
   type TaskWorkspaceLogEvent,
 } from './taskLogSession';
@@ -1539,9 +1540,11 @@ function App() {
     void fetchTaskActionLogs(fetch, taskWorkspacePath, { afterSeq: 0 })
       .then((result) => {
         if (cancelled) return;
+        setTaskActionLogs(result.entries);
         taskLogAfterSeqRef.current = result.latest_seq;
         taskLogBootstrappedRef.current = true;
         setIsTaskLogBootstrapped(true);
+        setTaskLogSession((current) => sessionForProcessLogs(current, result.latest_seq));
       })
       .catch(() => {
         if (cancelled) return;

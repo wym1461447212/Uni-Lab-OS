@@ -1407,7 +1407,15 @@ class WorkflowRunManager:
             if not isinstance(item, dict):
                 continue
             level = str(item.get("severity") or "warning").strip().lower()
-            if level not in {"error", "critical"}:
+            code = str(item.get("code") or "")
+            # 换料架是插入的高优先级流程，info 也要进运行日志，方便在界面上看到。
+            visible_tip_change = code in {
+                "tip_box_change_started",
+                "tip_box_change_finished",
+                "tip_box_change_failed",
+                "tip_parameter_update_failed",
+            }
+            if level not in {"error", "critical"} and not visible_tip_change:
                 continue
             key = (
                 str(item.get("instance_id") or ""),
@@ -2329,7 +2337,9 @@ class WorkflowRunManager:
             return
 
         def _loop() -> None:
-            while not self._opc_poll_stop.wait(2.0):
+            # 后台采样只负责保活。真正派发时界面每 2 秒也会采样，
+            # 这里放慢，避免开始派发的预检和 plan 被版本号冲掉。
+            while not self._opc_poll_stop.wait(15.0):
                 path = self._opc_poll_workflow_path
                 if not path:
                     continue

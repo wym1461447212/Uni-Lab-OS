@@ -63,6 +63,7 @@ def test_s09_pipetting_station_is_ast_scannable_from_own_package():
         "get_pipetting_status",
         "go_to_safe_position",
         "can_allocate_reusable_tip",
+        "can_allocate_single_use_tip",
     }.issubset(actions)
 
 
@@ -457,11 +458,17 @@ def test_twenty_four_single_use_tips_then_take_from_swapped_rack(tmp_path):
     )
     assert blocked["can_allocate"] is False
     assert blocked["needs_box_change"] is True
+    density_blocked = device.can_allocate_single_use_tip(count=1)
+    assert density_blocked["can_allocate"] is False
+    assert density_blocked["needs_box_change"] is True
 
     finished = device.finish_tip_box_change(full_box_position=2)
     assert finished["success"] is True
     assert finished["data"]["tip_source_box"] == 2
     assert finished["data"]["tip_waste_box"] == 1
+    density_ready = device.can_allocate_single_use_tip(count=1)
+    assert density_ready["can_allocate"] is True
+    assert density_ready["needs_box_change"] is False
 
     resumed = device.add_liquid_with_reusable_tip(
         liquid_station_index=1,
