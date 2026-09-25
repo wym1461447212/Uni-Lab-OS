@@ -23,7 +23,7 @@ from .sensors import (
     S09_LIQUID_BOTTLE_VAR,
     S09_PARAM_WRITTEN_VAR,
     S09_PROCESS_DONE_VAR,
-    S09_PROCESS_LABELS,
+    s09_process_label,
     S09_PROCESS_SELECT_VAR,
     S09_STATION_STATUS_VAR,
     S09_STATION_SENSORS,
@@ -492,7 +492,7 @@ class SzlabMixerPipettingStationDevice:
             "data": {"home_positions": values, "errors": errors},
         }
 
-    @not_action
+    @action(auto_prefix=True, description="S09 回到指定安全位，换 TIP 盒前必须先调用")
     def go_to_safe_position(self, home_position: int = 1, require_allow: bool = True) -> dict[str, Any]:
         try:
             home_position = validate_home_position(home_position)
@@ -676,8 +676,8 @@ class SzlabMixerPipettingStationDevice:
         try:
             self._append_log(
                 logs,
-                f"S09 工艺 {process} 参数写入开始：{S09_PROCESS_LABELS[process]}",
-                {"process": process, "process_label": S09_PROCESS_LABELS[process], "params": process_params},
+                f"S09 工艺 {process} 参数写入开始：{s09_process_label(process)}",
+                {"process": process, "process_label": s09_process_label(process), "params": process_params},
             )
             for variable, value in process_params.items():
                 self._write_variable(variable, value)
@@ -698,7 +698,7 @@ class SzlabMixerPipettingStationDevice:
 
         data: dict[str, Any] = {
             "process": process,
-            "process_label": S09_PROCESS_LABELS[process],
+            "process_label": s09_process_label(process),
             "tip_box_index": tip_box_index,
             "tip_index": tip_index,
             "liquid_bottle_index": liquid_bottle_index,
@@ -808,7 +808,7 @@ class SzlabMixerPipettingStationDevice:
         self._last_process = data
         return {
             "success": True,
-            "message": f"S09 工艺 {process} 完成：{S09_PROCESS_LABELS[process]}",
+            "message": f"S09 工艺 {process} 完成：{s09_process_label(process)}",
             "data": data,
             "logs": logs,
         }
@@ -975,6 +975,8 @@ class SzlabMixerPipettingStationDevice:
         liquid_additions: list[dict[str, Any]] | None = None,
         initialize_tip_inventory: bool = False,
         initial_used_tip_count: int = 0,
+        take_tip_box_index: int | None = None,
+        release_tip_box_index: int | None = None,
     ) -> dict[str, Any]:
         if initialize_tip_inventory:
             initialized = self.initialize_reusable_tip_inventory(
@@ -997,6 +999,8 @@ class SzlabMixerPipettingStationDevice:
                         skip_level_check=skip_level_check,
                         reuse_tip=bool(addition["reuse_tip"]),
                         replace_tip=bool(addition.get("replace_tip", False)),
+                        take_tip_box_index=take_tip_box_index,
+                        release_tip_box_index=release_tip_box_index,
                     )
                 except (KeyError, TypeError, ValueError) as exc:
                     return {
@@ -1055,6 +1059,21 @@ class SzlabMixerPipettingStationDevice:
             except Exception as exc:
                 return {"success": False, "message": str(exc)}
 
+            try:
+                take_box, release_box = self._resolve_tip_rack_indexes(
+                    take_tip_box_index=take_tip_box_index,
+                    release_tip_box_index=release_tip_box_index,
+                    fallback_take=int(tip["current_box"]),
+                )
+            except ValueError as exc:
+                if not reuse_tip:
+                    try:
+                        self._tip_reuse_state.release_single_use_tip_reservation(
+                            int(tip["tip_index"])
+                        )
+                    except Exception:
+                        pass
+                return {"success": False, "message": str(exc)}
             liquid_tip_tracking = {
                 "solvent_key": solvent_key,
                 "solvent_batch_id": solvent_batch_id,
@@ -1062,8 +1081,8 @@ class SzlabMixerPipettingStationDevice:
                 "reuse_tip": reuse_tip,
                 "single_use": not reuse_tip,
                 "tip_index": int(tip["tip_index"]),
-                "take_tip_box_index": int(tip["current_box"]),
-                "release_tip_box_index": 2,
+                "take_tip_box_index": take_box,
+                "release_tip_box_index": release_box,
                 "required_cycles": required_cycles,
             }
             if tip_replacement is not None:
@@ -1291,19 +1310,22 @@ class SzlabMixerPipettingStationDevice:
             except Exception as exc:
                 return {"success": False, "message": str(exc)}
 
+            racks = self._tip_reuse_state.rack_positions()
+            take_tip_box_index = int(density_tip["current_box"])
+            release_tip_box_index = int(racks["waste"])
             density_tip_tracking = {
                 "tip_index": int(density_tip["tip_index"]),
-                "take_tip_box_index": 1,
-                "release_tip_box_index": 2,
+                "take_tip_box_index": take_tip_box_index,
+                "release_tip_box_index": release_tip_box_index,
                 "single_use": True,
                 "density_measurement_count": density_measurement_count,
             }
             steps: list[dict[str, Any]] = []
             logs: list[dict[str, Any]] = []
             plan = [
-                (5, 1, 0, 0, "取一次性测密度 TIP"),
-                (9, 1, density_raw_volume, 0, "烧杯测密度抽排液"),
-                (6, 2, 0, 0, "废弃测密度 TIP"),
+                (5, take_tip_box_index, 0, 0, "取一次性测密度 TIP"),
+                (9, take_tip_box_index, density_raw_volume, 0, "烧杯测密度抽排液"),
+                (6, release_tip_box_index, 0, 0, "废弃测密度 TIP"),
             ]
             for process, tip_box, aspirate, dispense, step_name in plan:
                 result = self.run_process(
@@ -1568,6 +1590,123 @@ class SzlabMixerPipettingStationDevice:
                 "state_path": str(self._tip_reuse_state.state_path),
             },
         }
+
+    @not_action
+    def tip_rack_positions(self) -> dict[str, int]:
+        """当前有 TIP 料架和废料架。初始 source=1、waste=2。"""
+        return self._tip_reuse_state.rack_positions()
+
+    @not_action
+    def finish_tip_box_change(self, *, full_box_position: int) -> dict[str, Any]:
+        """按上料流程放下满盒的位号登记有 TIP 料架，另一位作为废料架。"""
+        try:
+            roles = self._tip_reuse_state.finish_tip_box_change(
+                full_box_position=full_box_position,
+            )
+        except Exception as exc:
+            return {"success": False, "message": str(exc)}
+        return {
+            "success": True,
+            "message": (
+                f"上料流程把满料架放到 {roles['tip_source_box']} 号，"
+                f"废料架为 {roles['tip_waste_box']} 号"
+            ),
+            "data": roles,
+        }
+
+    @not_action
+    def _resolve_tip_rack_indexes(
+        self,
+        *,
+        take_tip_box_index: int | None,
+        release_tip_box_index: int | None,
+        fallback_take: int,
+    ) -> tuple[int, int]:
+        """显式参数优先。换架后调度按上料流程写入满料架和废料架。"""
+        if take_tip_box_index is None and release_tip_box_index is None:
+            return fallback_take, int(self._tip_reuse_state.rack_positions()["waste"])
+        if take_tip_box_index is None or release_tip_box_index is None:
+            raise ValueError("取 TIP 料架和放 TIP 料架必须同时指定")
+        take_box = validate_tip_box(take_tip_box_index)
+        release_box = validate_tip_box(release_tip_box_index)
+        if take_box == release_box:
+            raise ValueError("取 TIP 料架和放 TIP 料架不能是同一个位")
+        return take_box, release_box
+
+    @action(auto_prefix=True, description="判断本次加液能否分到 TIP，不修改库存")
+    def can_allocate_reusable_tip(
+        self,
+        liquid_station_index: int = 1,
+        solvent_batch_id: str = "",
+        volume: int | float = 1,
+        volume_unit: str = "raw",
+        reuse_tip: bool = True,
+        liquid_count: int = 1,
+        liquid_additions: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        try:
+            operations = self._reusable_tip_operations(
+                liquid_station_index=liquid_station_index,
+                solvent_batch_id=solvent_batch_id,
+                volume=volume,
+                volume_unit=volume_unit,
+                reuse_tip=reuse_tip,
+                liquid_count=liquid_count,
+                liquid_additions=liquid_additions,
+            )
+            allocation = self._tip_reuse_state.can_allocate_operations(operations)
+        except (TypeError, ValueError, RuntimeError) as exc:
+            return {
+                "success": False,
+                "can_allocate": False,
+                "needs_box_change": False,
+                "message": str(exc),
+            }
+        return {
+            "success": True,
+            "message": "S09 TIP 可以分配" if allocation["can_allocate"] else "S09 TIP 暂不可分配",
+            **allocation,
+        }
+
+    @not_action
+    def _reusable_tip_operations(
+        self,
+        *,
+        liquid_station_index: int,
+        solvent_batch_id: str,
+        volume: int | float,
+        volume_unit: str,
+        reuse_tip: bool,
+        liquid_count: int,
+        liquid_additions: list[dict[str, Any]] | None,
+    ) -> list[dict[str, Any]]:
+        additions = liquid_additions or [
+            {
+                "liquid_station_index": liquid_station_index,
+                "solvent_batch_id": solvent_batch_id,
+                "volume": volume,
+                "reuse_tip": reuse_tip,
+            }
+        ]
+        if liquid_additions is not None and liquid_count != len(liquid_additions):
+            raise ValueError("liquid_count 与 liquid_additions 数量不一致")
+        operations: list[dict[str, Any]] = []
+        for addition in additions:
+            station_index = int(addition["liquid_station_index"])
+            batch_id = str(addition["solvent_batch_id"]).strip()
+            if not batch_id:
+                raise ValueError("S09 加液必须提供明确的 solvent_batch_id")
+            raw_volume = self._volume_to_raw(addition["volume"], volume_unit)
+            if raw_volume <= 0:
+                raise ValueError("S09 加液量必须大于 0")
+            operations.append(
+                {
+                    "solvent_key": f"S09-STATION-{station_index}:BATCH:{batch_id}",
+                    "required_cycles": len(self._split_raw_volume(raw_volume)),
+                    "reuse": bool(addition.get("reuse_tip", True)),
+                }
+            )
+        return operations
 
     @action(auto_prefix=True, description="读取 S09 可复用 TIP 库存与溶剂绑定")
     def get_reusable_tip_status(self) -> dict[str, Any]:

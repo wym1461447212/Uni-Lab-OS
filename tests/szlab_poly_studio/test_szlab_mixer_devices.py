@@ -76,6 +76,32 @@ def test_szlab_wait_variable_true_reuses_read_variable_and_interval(monkeypatch)
     assert sleeps == [1.0, 1.0]
 
 
+def test_s02_auto_place_and_pick_use_waste_and_fresh_zones():
+    from unilabos.devices.workstation.szlab_poly_studio.sensor import S02Sensors
+
+    class FakePlc:
+        def read_variable(self, name, use_cache=False):
+            del use_cache
+            occupied = {
+                S02Sensors.TIP_BOX["1"]: True,
+                S02Sensors.TIP_BOX["2"]: False,
+                S02Sensors.TIP_BOX["3"]: True,
+                S02Sensors.TIP_BOX["4"]: False,
+                S02Sensors.TIP_BOX["5"]: True,
+                S02Sensors.TIP_BOX["6"]: False,
+            }
+            return occupied[name]
+
+    robot = SzlabMixerRobotDevice()
+    robot.set_plc_gateway(FakePlc())
+
+    slots = robot.scan_s02_tip_slots()
+    assert robot.choose_s02_place_position(slots) == 2
+    assert robot.choose_s02_pick_position(slots) == 5
+    assert robot._resolve_s02_position("auto", mode="place") == 2
+    assert robot._resolve_s02_position("auto", mode="pick") == 5
+
+
 def test_s071_auto_place_position_selects_first_empty_slot():
     class FakePlc:
         def read_variable(self, name, use_cache=False):

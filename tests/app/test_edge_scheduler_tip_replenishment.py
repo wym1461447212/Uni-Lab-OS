@@ -10,6 +10,7 @@ from unilabos.app.scheduler import (
 )
 from unilabos.app.scheduler.dispatch import RecordingDispatcher
 from unilabos.app.scheduler.inventory import InventoryService, InventoryStore
+from unilabos.app.scheduler.service import build_tip_box_change_workflow
 
 
 def _req(quantity: float = 1) -> MaterialRequirement:
@@ -218,6 +219,17 @@ def test_concurrent_shortage_gets_own_box_change_without_resetting_inflight():
         sum(1 for item in dispatcher.dispatched if item["action"] == "replace_tip_box")
         == 1
     )
+
+
+def test_tip_box_change_workflow_records_selected_s02_positions():
+    spec = build_tip_box_change_workflow(s02_place_position=2, s02_pick_position=5)
+
+    params = {node.action_name: node.param for node in spec.nodes}
+
+    assert params["submit_place_to_s02"] == {"position": 2}
+    assert params["submit_pick_from_s02"] == {"position": 5}
+    assert params["submit_pick_from_s09"] == {"product_type": 1, "position": 1}
+    assert params["submit_place_to_s09"] == {"product_type": 1, "position": 1}
 
 
 def test_default_factory_emits_restore_plus_four_robot_actions():

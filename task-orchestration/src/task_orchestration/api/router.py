@@ -11,6 +11,7 @@ from ..models import (
     AdvanceRequest,
     ClearInstancesRequest,
     GenerateInstancesRequest,
+    BlockedActionParametersUpdateRequest,
     InstanceParametersUpdateRequest,
     MoveInstanceRequest,
     PlcRegistrationRequest,
@@ -231,6 +232,23 @@ def create_router(store: WorkspaceStore, service: WorkspaceService | None = None
                     request.expected_version,
                     instance_id,
                     request.node_parameters,
+                )
+            )
+        except (VersionConflictError, WorkspaceServiceError, SidecarCorruptionError, WorkflowPathError) as exc:
+            raise mutation_error(exc) from exc
+
+    @router.post("/instances/{instance_id}:patch-blocked-parameters")
+    def update_blocked_action_parameters(
+        instance_id: str, request: BlockedActionParametersUpdateRequest
+    ) -> dict:
+        try:
+            return public_workspace_response(
+                workspace_service.update_blocked_action_parameters(
+                    request.workflow_path,
+                    request.expected_version,
+                    instance_id,
+                    request.node_id,
+                    request.parameters,
                 )
             )
         except (VersionConflictError, WorkspaceServiceError, SidecarCorruptionError, WorkflowPathError) as exc:

@@ -635,6 +635,15 @@ class InstanceParametersUpdateRequest(StrictModel):
     node_parameters: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
 
+class BlockedActionParametersUpdateRequest(StrictModel):
+    """换料架后，改写仍在阻塞、尚未认领的当前动作参数。"""
+
+    workflow_path: str
+    expected_version: int = Field(ge=0)
+    node_id: str
+    parameters: dict[str, Any] = Field(default_factory=dict)
+
+
 class ScheduleRequest(StrictModel):
     workflow_path: str
     expected_version: int = Field(ge=0)

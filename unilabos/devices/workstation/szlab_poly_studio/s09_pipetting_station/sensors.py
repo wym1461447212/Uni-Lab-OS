@@ -23,6 +23,13 @@ S09_HOME_LABELS: dict[int, str] = {
     4: "机器人烧杯取放",
 }
 
+S09_HOME_PROCESS_LABELS: dict[int, str] = {
+    1: "回到安全位1：机器人 TIP 盒取放",
+    2: "回到安全位2：机器人液体试剂 1/2/3 取放",
+    3: "回到安全位3：机器人液体试剂 4/5 取放",
+    4: "回到安全位4：机器人烧杯取放",
+}
+
 S09_PROCESS_LABELS: dict[int, str] = {
     5: "取 TIP",
     6: "放 TIP",
@@ -81,10 +88,17 @@ def validate_density_count(count: int) -> int:
     return count
 
 
+def s09_process_label(process: int) -> str:
+    process = int(process)
+    if process in S09_HOME_PROCESS_LABELS:
+        return S09_HOME_PROCESS_LABELS[process]
+    return S09_PROCESS_LABELS[process]
+
+
 def validate_process(process: int) -> int:
     process = int(process)
-    if process not in S09_PROCESS_LABELS:
-        raise ValueError("S09 工艺选择必须在 5-9 范围内")
+    if process not in S09_PROCESS_LABELS and process not in S09_HOME_PROCESS_LABELS:
+        raise ValueError("S09 工艺选择必须在 1-4（安全位）或 5-9 范围内")
     return process
 
 

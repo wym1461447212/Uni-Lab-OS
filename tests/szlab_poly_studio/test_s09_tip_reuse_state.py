@@ -13,6 +13,69 @@ from unilabos.devices.workstation.szlab_poly_studio.s09_pipetting_station.tip_re
 )
 
 
+def test_can_allocate_is_read_only_and_requests_box_change_when_box_is_empty(tmp_path):
+    store = ReusableTipStateStore(tmp_path / "tip_state.json")
+    operation = {
+        "solvent_key": "S09-STATION-1:BATCH:solvent-batch-001",
+        "required_cycles": 1,
+        "reuse": True,
+    }
+
+    uninitialized = store.can_allocate_operations([operation])
+    assert uninitialized["can_allocate"] is False
+    assert uninitialized["needs_box_change"] is False
+    assert uninitialized["reason"] == "not_initialized"
+
+    store.initialize(used_tip_count=24)
+    before = store.snapshot()
+    empty = store.can_allocate_operations([operation])
+
+    assert empty == {
+        "can_allocate": False,
+        "needs_box_change": True,
+        "reason": "box_empty",
+        "unused_tip_count": 0,
+    }
+    assert store.snapshot() == before
+
+
+def test_can_allocate_reuses_bound_tip_without_taking_a_new_one(tmp_path):
+    store = ReusableTipStateStore(tmp_path / "tip_state.json", tip_count=1)
+    store.initialize()
+    store.prepare_tip("S09-STATION-1:BATCH:solvent-batch-001")
+
+    result = store.can_allocate_operations(
+        [
+            {
+                "solvent_key": "S09-STATION-1:BATCH:solvent-batch-001",
+                "required_cycles": 1,
+                "reuse": True,
+            }
+        ]
+    )
+
+    assert result["can_allocate"] is True
+    assert result["needs_box_change"] is False
+    assert result["unused_tip_count"] == 0
+
+
+def test_finish_tip_box_change_uses_loading_workflow_full_rack(tmp_path):
+    store = ReusableTipStateStore(tmp_path / "tip_state.json", tip_count=2)
+    store.initialize()
+
+    placed_at_two = store.finish_tip_box_change(full_box_position=2)
+
+    assert placed_at_two["previous_tip_source_box"] == 1
+    assert placed_at_two["tip_source_box"] == 2
+    assert placed_at_two["tip_waste_box"] == 1
+    assert store.snapshot()["tips"]["1"]["current_box"] == 2
+
+    placed_at_one = store.finish_tip_box_change(full_box_position=1)
+    assert placed_at_one["tip_source_box"] == 1
+    assert placed_at_one["tip_waste_box"] == 2
+    assert store.rack_positions() == {"source": 1, "waste": 2}
+
+
 def test_tip_inventory_requires_explicit_initialization(tmp_path):
     store = ReusableTipStateStore(tmp_path / "tip_state.json")
 

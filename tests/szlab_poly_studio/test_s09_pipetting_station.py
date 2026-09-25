@@ -61,21 +61,23 @@ def test_s09_pipetting_station_is_ast_scannable_from_own_package():
         "initialize_reusable_tip_inventory",
         "get_reusable_tip_status",
         "get_pipetting_status",
+        "go_to_safe_position",
+        "can_allocate_reusable_tip",
     }.issubset(actions)
-    assert "go_to_safe_position" not in actions
 
 
 def test_s09_process_labels_cover_liquid_processes_5_to_9():
     assert set(S09_PROCESS_LABELS) == set(range(5, 10))
     assert S09_PROCESS_LABELS[5] == "取 TIP"
     assert S09_PROCESS_LABELS[7].startswith("液体瓶取液")
+    assert validate_process(1) == 1
     assert validate_process(9) == 9
 
     device = make_pipetting_device()
-    result = device.run_process(process=1)
+    result = device.run_process(process=0)
 
     assert result["success"] is False
-    assert "5-9" in result["message"]
+    assert "1-4" in result["message"]
 
 
 def test_s09_run_process_writes_expected_variables_and_waits_done():
@@ -424,6 +426,55 @@ def test_s09_reusable_tip_action_allocates_by_batch_and_station(tmp_path):
         result["data"]["tip_reuse"]["tip_index"] for result in results
     ] == [1, 2, 3, 4, 1]
     assert results[-1]["data"]["tip_reuse"]["take_tip_box_index"] == 2
+
+
+def test_twenty_four_single_use_tips_then_take_from_swapped_rack(tmp_path):
+    client = PseudoSzlabS09OpcUaClient({"S09液体瓶1剩余液量": 100.0})
+    device = make_pipetting_device(
+        client,
+        tip_reuse_state_path=str(tmp_path / "tip_state.json"),
+    )
+    assert device.initialize_reusable_tip_inventory()["success"] is True
+
+    for index in range(24):
+        result = device.add_liquid_with_reusable_tip(
+            liquid_station_index=1,
+            solvent_batch_id=f"batch-{index}",
+            volume=1,
+            volume_unit="raw",
+            reuse_tip=False,
+        )
+        assert result["success"] is True, result.get("message")
+        assert result["data"]["tip_reuse"]["take_tip_box_index"] == 1
+        assert result["data"]["tip_reuse"]["release_tip_box_index"] == 2
+
+    blocked = device.can_allocate_reusable_tip(
+        liquid_station_index=1,
+        solvent_batch_id="batch-next",
+        volume=1,
+        volume_unit="raw",
+        reuse_tip=False,
+    )
+    assert blocked["can_allocate"] is False
+    assert blocked["needs_box_change"] is True
+
+    finished = device.finish_tip_box_change(full_box_position=2)
+    assert finished["success"] is True
+    assert finished["data"]["tip_source_box"] == 2
+    assert finished["data"]["tip_waste_box"] == 1
+
+    resumed = device.add_liquid_with_reusable_tip(
+        liquid_station_index=1,
+        solvent_batch_id="batch-next",
+        volume=1,
+        volume_unit="raw",
+        reuse_tip=False,
+        take_tip_box_index=finished["data"]["tip_source_box"],
+        release_tip_box_index=finished["data"]["tip_waste_box"],
+    )
+    assert resumed["success"] is True, resumed.get("message")
+    assert resumed["data"]["tip_reuse"]["take_tip_box_index"] == 2
+    assert resumed["data"]["tip_reuse"]["release_tip_box_index"] == 1
 
 
 def test_s09_reusable_tip_action_replaces_tip_at_limit(tmp_path):

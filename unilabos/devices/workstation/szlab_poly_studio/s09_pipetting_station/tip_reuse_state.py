@@ -21,6 +21,15 @@ TIP_STATUSES = {
 }
 
 
+def _rack_pair(source_box: int, waste_box: int) -> tuple[int, int]:
+    """有 TIP 料架和废料架必须占满 S09 的 1、2 号位，且不能是同一个位。"""
+    source_box = int(source_box)
+    waste_box = int(waste_box)
+    if sorted((source_box, waste_box)) != [1, 2]:
+        raise ValueError("S09 有 TIP 料架和废料架必须分别占用 1 号和 2 号位")
+    return source_box, waste_box
+
+
 class ReusableTipStateStore:
     """持久化维护 S09 溶剂与可复用 TIP 的绑定状态。"""
 
@@ -51,6 +60,8 @@ class ReusableTipStateStore:
             "tip_count": self.tip_count,
             "max_use_count": self.max_use_count,
             "last_operation": None,
+            "tip_source_box": 1,
+            "tip_waste_box": 2,
             "solvents": {},
             "tips": {},
         }
@@ -60,24 +71,29 @@ class ReusableTipStateStore:
         *,
         used_tip_count: int = 0,
         known_bindings: dict[str, int] | None = None,
+        source_box: int = 1,
+        waste_box: int = 2,
     ) -> dict[str, Any]:
         used_tip_count = int(used_tip_count)
+        source_box, waste_box = _rack_pair(source_box, waste_box)
         if not 0 <= used_tip_count <= self.tip_count:
             raise ValueError(f"S09 已使用 TIP 数量必须在 0-{self.tip_count} 范围内")
         state = self._empty_state()
         state["initialized"] = True
+        state["tip_source_box"] = source_box
+        state["tip_waste_box"] = waste_box
         state["tips"] = {
             str(index): {
                 "status": TIP_STATUS_UNUSED,
                 "solvent_key": None,
-                "current_box": 1,
+                "current_box": source_box,
                 "use_count": 0,
             }
             for index in range(1, self.tip_count + 1)
         }
         for index in range(1, used_tip_count + 1):
             state["tips"][str(index)].update(
-                {"status": TIP_STATUS_EXHAUSTED, "current_box": 2}
+                {"status": TIP_STATUS_EXHAUSTED, "current_box": waste_box}
             )
         for raw_key, raw_index in (known_bindings or {}).items():
             key = self._normalize_solvent_key(raw_key)
@@ -91,7 +107,7 @@ class ReusableTipStateStore:
                 {
                     "status": TIP_STATUS_BOUND,
                     "solvent_key": key,
-                    "current_box": 2,
+                    "current_box": waste_box,
                     "use_count": max(1, int(tip["use_count"])),
                 }
             )
@@ -180,6 +196,164 @@ class ReusableTipStateStore:
         with self._lock:
             return copy.deepcopy(self._state)
 
+    def rack_positions(self) -> dict[str, int]:
+        """当前有 TIP 料架和废料架的 S09 位号。初始为 1 号有 TIP、2 号废料。"""
+        with self._lock:
+            source_box, waste_box = _rack_pair(
+                self._state.get("tip_source_box", 1),
+                self._state.get("tip_waste_box", 2),
+            )
+            return {"source": source_box, "waste": waste_box}
+
+    def finish_tip_box_change(self, *, full_box_position: int) -> dict[str, Any]:
+        """按上料流程实际放下满盒的位号，登记有 TIP 料架，另一位作为废料架。
+
+        full_box_position 来自换料流程里 submit_place_to_s09 的 position，
+        不按 1/2 对调推断。
+        """
+        full_box = int(full_box_position)
+        if full_box not in (1, 2):
+            raise ValueError("满料架位必须是 1 或 2")
+        waste_box = 2 if full_box == 1 else 1
+        with self._lock:
+            previous_source, previous_waste = _rack_pair(
+                self._state.get("tip_source_box", 1),
+                self._state.get("tip_waste_box", 2),
+            )
+            self._state = self._initialized_state(
+                used_tip_count=0,
+                source_box=full_box,
+                waste_box=waste_box,
+            )
+            self._save_locked()
+            return {
+                "tip_source_box": full_box,
+                "tip_waste_box": waste_box,
+                "full_box_position": full_box,
+                "previous_tip_source_box": previous_source,
+                "previous_tip_waste_box": previous_waste,
+                "tip_count": self.tip_count,
+            }
+
+    def _source_box_locked(self) -> int:
+        return _rack_pair(
+            self._state.get("tip_source_box", 1),
+            self._state.get("tip_waste_box", 2),
+        )[0]
+
+    def _waste_box_locked(self) -> int:
+        return _rack_pair(
+            self._state.get("tip_source_box", 1),
+            self._state.get("tip_waste_box", 2),
+        )[1]
+
+    def _unused_tip_count_locked(self) -> int:
+        return sum(
+            1
+            for tip in self._state["tips"].values()
+            if tip.get("status") == TIP_STATUS_UNUSED
+        )
+
+    def can_allocate_operations(self, operations: list[dict[str, Any]]) -> dict[str, Any]:
+        """只读判断这些加液还能不能分到 TIP，不写库存。"""
+        with self._lock:
+            unused_tip_count = self._unused_tip_count_locked()
+            if not self._state["initialized"]:
+                return {
+                    "can_allocate": False,
+                    "needs_box_change": False,
+                    "reason": "not_initialized",
+                    "unused_tip_count": unused_tip_count,
+                }
+            tips = copy.deepcopy(self._state["tips"])
+            solvents = copy.deepcopy(self._state["solvents"])
+            for operation in operations:
+                key = self._normalize_solvent_key(operation["solvent_key"])
+                cycles = int(operation["required_cycles"])
+                reuse = bool(operation.get("reuse", True))
+                if cycles <= 0:
+                    return {
+                        "can_allocate": False,
+                        "needs_box_change": False,
+                        "reason": "invalid_cycles",
+                        "unused_tip_count": unused_tip_count,
+                    }
+                if cycles > self.max_use_count:
+                    return {
+                        "can_allocate": False,
+                        "needs_box_change": False,
+                        "reason": "cycles_exceed_limit",
+                        "unused_tip_count": unused_tip_count,
+                    }
+                if reuse:
+                    solvent = solvents.setdefault(
+                        key,
+                        {
+                            "active_tip_index": None,
+                            "tip_history": [],
+                            "remaining_volume_ml": None,
+                            "active_s09_slot": None,
+                            "status": "ready",
+                        },
+                    )
+                    if solvent["status"] == TIP_STATUS_UNKNOWN:
+                        return {
+                            "can_allocate": False,
+                            "needs_box_change": False,
+                            "reason": "unknown",
+                            "unused_tip_count": unused_tip_count,
+                        }
+                    active_tip_index = solvent["active_tip_index"]
+                    if active_tip_index is not None:
+                        active_tip = tips[str(active_tip_index)]
+                        if (
+                            active_tip["status"] != TIP_STATUS_BOUND
+                            or active_tip["solvent_key"] != key
+                        ):
+                            return {
+                                "can_allocate": False,
+                                "needs_box_change": False,
+                                "reason": "binding_inconsistent",
+                                "unused_tip_count": unused_tip_count,
+                            }
+                        if int(active_tip["use_count"]) + cycles <= self.max_use_count:
+                            continue
+                        active_tip["status"] = TIP_STATUS_EXHAUSTED
+                        solvent["active_tip_index"] = None
+                available_tip_index = next(
+                    (
+                        index
+                        for index in range(1, self.tip_count + 1)
+                        if tips[str(index)]["status"] == TIP_STATUS_UNUSED
+                    ),
+                    None,
+                )
+                if available_tip_index is None:
+                    return {
+                        "can_allocate": False,
+                        "needs_box_change": True,
+                        "reason": "box_empty",
+                        "unused_tip_count": unused_tip_count,
+                    }
+                tip = tips[str(available_tip_index)]
+                tip.update(
+                    {
+                        "status": TIP_STATUS_BOUND,
+                        "solvent_key": key if reuse else None,
+                        "current_box": self._source_box_locked(),
+                        "use_count": 0,
+                    }
+                )
+                if reuse:
+                    solvent["active_tip_index"] = available_tip_index
+                    solvent["status"] = "ready"
+            return {
+                "can_allocate": True,
+                "needs_box_change": False,
+                "reason": "ok",
+                "unused_tip_count": unused_tip_count,
+            }
+
     def record_last_operation(
         self,
         *,
@@ -264,14 +438,16 @@ class ReusableTipStateStore:
             )
             if available_tip_index is None:
                 self._save_locked()
-                raise RuntimeError("S09 盒1中没有可分配的新 TIP")
+                raise RuntimeError(
+                    f"S09 {self._source_box_locked()} 号有 TIP 料架上没有可分配的新 TIP"
+                )
 
             tip = self._state["tips"][str(available_tip_index)]
             tip.update(
                 {
                     "status": TIP_STATUS_BOUND,
                     "solvent_key": key,
-                    "current_box": 1,
+                    "current_box": self._source_box_locked(),
                     "use_count": 0,
                 }
             )
@@ -304,7 +480,7 @@ class ReusableTipStateStore:
                     f"S09 TIP {tip_index} 使用次数将超过上限 {self.max_use_count}"
                 )
             tip["use_count"] = new_use_count
-            tip["current_box"] = 2
+            tip["current_box"] = self._waste_box_locked()
             self._save_locked()
             return copy.deepcopy(tip | {"tip_index": tip_index})
 
@@ -342,16 +518,20 @@ class ReusableTipStateStore:
                 None,
             )
             if new_tip_index is None:
-                raise RuntimeError("S09 盒1中没有可分配的新 TIP")
+                raise RuntimeError(
+                    f"S09 {self._source_box_locked()} 号有 TIP 料架上没有可分配的新 TIP"
+                )
 
             old_tip_snapshot = copy.deepcopy(old_tip | {"tip_index": old_tip_index})
-            old_tip.update({"status": TIP_STATUS_EXHAUSTED, "current_box": 2})
+            old_tip.update(
+                {"status": TIP_STATUS_EXHAUSTED, "current_box": self._waste_box_locked()}
+            )
             new_tip = self._state["tips"][str(new_tip_index)]
             new_tip.update(
                 {
                     "status": TIP_STATUS_BOUND,
                     "solvent_key": key,
-                    "current_box": 1,
+                    "current_box": self._source_box_locked(),
                     "use_count": 0,
                 }
             )
@@ -382,13 +562,15 @@ class ReusableTipStateStore:
                 None,
             )
             if tip_index is None:
-                raise RuntimeError("S09 盒1中没有可用的一次性新 TIP")
+                raise RuntimeError(
+                    f"S09 {self._source_box_locked()} 号有 TIP 料架上没有可用的一次性新 TIP"
+                )
             tip = self._state["tips"][str(tip_index)]
             tip.update(
                 {
                     "status": TIP_STATUS_BOUND,
                     "solvent_key": None,
-                    "current_box": 1,
+                    "current_box": self._source_box_locked(),
                     "use_count": 0,
                 }
             )
@@ -406,7 +588,7 @@ class ReusableTipStateStore:
             tip.update(
                 {
                     "status": TIP_STATUS_EXHAUSTED,
-                    "current_box": 2,
+                    "current_box": self._waste_box_locked(),
                     "use_count": 1,
                 }
             )
@@ -425,7 +607,7 @@ class ReusableTipStateStore:
                 {
                     "status": TIP_STATUS_UNUSED,
                     "solvent_key": None,
-                    "current_box": 1,
+                    "current_box": self._source_box_locked(),
                     "use_count": 0,
                 }
             )

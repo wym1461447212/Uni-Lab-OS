@@ -826,7 +826,7 @@ def test_s09_debug_preset_uses_debug_file_name():
     }
     assert "run_process" not in preset.actions
     assert "measure_density" in preset.actions
-    assert "go_to_safe_position" not in preset.actions
+    assert "go_to_safe_position" in preset.actions
     assert "add_liquid" in preset.actions
     assert "add_liquid_to_beaker" in preset.actions
     add_liquid_param_names = [
@@ -933,6 +933,7 @@ def test_szlab_robot_action_workflow_preset_includes_s03_to_s07_devices():
     ] == [
         "check_home_position",
         "read_home_positions",
+        "go_to_safe_position",
         "prepare_liquid_station",
         "read_allow_process",
         "bind_sample_to_station",
@@ -947,6 +948,7 @@ def test_szlab_robot_action_workflow_preset_includes_s03_to_s07_devices():
         "initialize_liquid_bottle_remaining_volumes",
         "read_balance",
         "initialize_reusable_tip_inventory",
+        "can_allocate_reusable_tip",
         "get_reusable_tip_status",
         "get_pipetting_status",
     ]
@@ -1270,7 +1272,7 @@ def test_szlab_robot_action_workflow_photos_before_density_and_pours_after():
             "liquid_station_index": 1,
             "solvent_batch_id": "solvent-batch-001",
             "volume": 5000,
-            "reuse_tip": True,
+            "reuse_tip": False,
         }
     ]
 

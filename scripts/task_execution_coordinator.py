@@ -15,6 +15,13 @@ from scripts.run_workflow_local import (
     node_method,
     workflow_node_from_mapping,
 )
+from scripts.s09_tip_box_change import (
+    ROBOT_DEVICE_ID,
+    S09_LIQUID_NODE_ID,
+    STATION_DEVICE_ID,
+    execute_tip_box_change,
+    reusable_tip_query_kwargs,
+)
 from scripts.task_action_result import find_action_failure
 from unilabos.devices.workstation.szlab_poly_studio.error_codes import (
     enrich_mixing_failure,
@@ -996,6 +1003,18 @@ class _InFlightAction:
 
 
 @dataclass
+class _TipBoxChange:
+    future: Future[dict[str, Any]]
+    instance_id: str
+    station: Any
+    node_id: str
+    sample_id: str
+    template_id: str
+    lock_keys: frozenset[str]
+    workflow_path: str = ""
+
+
+@dataclass
 class _PendingTerminalReport:
     workflow_path: str
     instance_id: str
@@ -1050,6 +1069,9 @@ class TaskExecutionCoordinator:
         )
         self._lock = threading.RLock()
         self._in_flight: dict[str, _InFlightAction] = {}
+        self._tip_changes: dict[str, _TipBoxChange] = {}
+        self._tip_change_blocked: set[str] = set()
+        self._tip_param_overrides: dict[str, dict[str, int]] = {}
         self._pending_terminal_reports: dict[
             str, _PendingTerminalReport
         ] = {}
@@ -1082,6 +1104,7 @@ class TaskExecutionCoordinator:
         }
         with self._lock:
             self._harvest_completed(stats)
+            self._harvest_tip_changes(stats)
             self._retry_pending_terminal_report(stats)
             self._update_activity_stats(stats)
             if self._in_flight or self._pending_terminal_reports:
@@ -1122,6 +1145,7 @@ class TaskExecutionCoordinator:
                 for action in self._in_flight.values()
             )
             self._harvest_completed(stats)
+            self._harvest_tip_changes(stats)
             if self._retry_pending_terminal_report(
                 stats, workflow_path=workflow_path
             ):
@@ -1233,6 +1257,15 @@ class TaskExecutionCoordinator:
                     str(instance.get("id"))
                 ):
                     continue
+                if str(instance.get("id")) in self._tip_changes:
+                    _append_diagnostic(
+                        stats,
+                        instance=instance,
+                        code="tip_box_change_running",
+                        message="正在更换 S09 TIP 盒，加液等待换盒完成",
+                        node_id=str(node_ids[cursor]),
+                    )
+                    continue
 
                 node_id = str(node_ids[cursor])
                 node = nodes_by_id.get(node_id)
@@ -1268,6 +1301,13 @@ class TaskExecutionCoordinator:
                 )
                 if node is not None and isinstance(override, dict):
                     node = replace(node, param={**node.param, **override})
+                pending_tip_racks = self._tip_param_overrides.get(instance_id)
+                if (
+                    node is not None
+                    and node_id == S09_LIQUID_NODE_ID
+                    and pending_tip_racks
+                ):
+                    node = replace(node, param={**node.param, **pending_tip_racks})
                 if node is not None and node_id in _S04_POSITION_DEPENDENT_NODE_IDS:
                     inherited_position = _resolve_sample_s04_position(
                         workspace,
@@ -1383,6 +1423,16 @@ class TaskExecutionCoordinator:
                         node_id=node_id,
                     )
                     continue
+                if self._defer_add_liquid_for_tip_change(
+                    stats,
+                    instance=instance,
+                    node=node,
+                    node_id=node_id,
+                    devices=devices,
+                    busy_concurrency_keys=busy_concurrency_keys,
+                    workflow_path=workflow_path,
+                ):
+                    continue
                 method_name = ""
                 action_callable: Callable[..., Any] | None = None
                 if node is not None:
@@ -1479,6 +1529,8 @@ class TaskExecutionCoordinator:
                         node_id=node_id,
                     )
                     continue
+                if node_id == S09_LIQUID_NODE_ID:
+                    self._tip_param_overrides.pop(instance_id, None)
                 current_response = claimed_response
                 stats["claimed"] = int(stats["claimed"]) + 1
                 busy_concurrency_keys.add(concurrency_key)
@@ -1691,7 +1743,7 @@ class TaskExecutionCoordinator:
         workspace: dict[str, Any],
         stats: dict[str, Any],
     ) -> bool:
-        """失败关闭服务端有记录但本进程无法证明正在执行的动作。"""
+        """服务端仍记着活动执行、本地 future 已丢失时先等待，不立刻判失败。"""
         for instance in workspace.get("task_instances", []):
             if not isinstance(instance, dict) or instance.get("status") != "running":
                 continue
@@ -1701,37 +1753,17 @@ class TaskExecutionCoordinator:
                 continue
             node_id = str(state.get("active_node_id") or "")
             stats["active"] = int(stats["active"]) + 1
-            message = "服务端存在活动执行但本地无对应 future，无法安全恢复"
+            # HTTP tick 超时后原 future 可能仍在执行；不要把实例打成 failed。
             _append_diagnostic(
                 stats,
                 instance=instance,
-                code="orphaned_execution",
-                message=message,
+                code="orphaned_execution_wait",
+                message="服务端仍有活动执行，等待本地 future 结束或下一拍重试认领",
                 node_id=node_id,
-                immediate=True,
-                severity="error",
-                category="dispatch_error",
-                phase="recovering",
                 execution_id=execution_id,
                 template_id=str(instance.get("template_id") or ""),
             )
-            self._submit_terminal_report(
-                _PendingTerminalReport(
-                    workflow_path=workflow_path,
-                    instance_id=str(instance.get("id")),
-                    node_id=node_id,
-                    execution_id=execution_id,
-                    error={
-                        "code": "orphaned_execution",
-                        "message": message,
-                    },
-                    sample_id=str(instance.get("sample_id") or ""),
-                    template_id=str(instance.get("template_id") or ""),
-                ),
-                expected_version=int(response["version"]),
-                stats=stats,
-            )
-            return True
+            continue
         return False
 
     def _claim(
@@ -1901,6 +1933,333 @@ class TaskExecutionCoordinator:
                     alarm=active_alarms[0],
                 )
 
+    def _defer_add_liquid_for_tip_change(
+        self,
+        stats: dict[str, Any],
+        *,
+        instance: dict[str, Any],
+        node: WorkflowNode | None,
+        node_id: str,
+        devices: dict[str, Any],
+        busy_concurrency_keys: set[str],
+        workflow_path: str,
+    ) -> bool:
+        """没 TIP 时阻塞加液，并插入更高优先级的换料架流程。"""
+        if node is None or node.uuid != S09_LIQUID_NODE_ID:
+            return False
+        instance_id = str(instance.get("id"))
+        if instance_id in self._tip_change_blocked:
+            _append_diagnostic(
+                stats,
+                instance=instance,
+                code="tip_box_change_failed",
+                message="S09 换 TIP 盒失败，已停止自动重试",
+                node=node,
+                node_id=node_id,
+                immediate=True,
+                severity="error",
+                category="dispatch_error",
+            )
+            return True
+        station = devices.get(STATION_DEVICE_ID)
+        query = getattr(station, "can_allocate_reusable_tip", None)
+        if not callable(query):
+            return False
+        try:
+            allocation = query(**reusable_tip_query_kwargs(node))
+        except Exception as exc:
+            _append_diagnostic(
+                stats,
+                instance=instance,
+                code="s09_tip_wait",
+                message=f"无法判断 S09 TIP 库存: {exc}",
+                node=node,
+                node_id=node_id,
+            )
+            return True
+        if not isinstance(allocation, dict) or "can_allocate" not in allocation:
+            return False
+        if allocation.get("can_allocate"):
+            return False
+        if not allocation.get("needs_box_change"):
+            _append_diagnostic(
+                stats,
+                instance=instance,
+                code="s09_tip_wait",
+                message=str(allocation.get("message") or "S09 TIP 暂不可分配"),
+                node=node,
+                node_id=node_id,
+                detail={"reason": allocation.get("reason")},
+            )
+            return True
+
+        robot = devices.get(ROBOT_DEVICE_ID)
+        scan = getattr(robot, "scan_s02_tip_slots", None)
+        choose_place = getattr(robot, "choose_s02_place_position", None)
+        choose_pick = getattr(robot, "choose_s02_pick_position", None)
+        if not all(callable(item) for item in (scan, choose_place, choose_pick)):
+            _append_diagnostic(
+                stats,
+                instance=instance,
+                code="s02_slot_wait",
+                message="机器人不支持 S02 TIP 盒位扫描",
+                node=node,
+                node_id=node_id,
+            )
+            return True
+        lock_keys = {ROBOT_DEVICE_ID, STATION_DEVICE_ID}
+        if lock_keys & busy_concurrency_keys:
+            _append_diagnostic(
+                stats,
+                instance=instance,
+                code="device_busy",
+                message="换 TIP 盒需要的机械臂或 S09 正在执行其他动作",
+                node=node,
+                node_id=node_id,
+            )
+            return True
+        try:
+            slots = scan()
+            place_position = choose_place(slots)
+            pick_position = choose_pick(slots)
+        except Exception as exc:
+            _append_diagnostic(
+                stats,
+                instance=instance,
+                code="s02_slot_wait",
+                message=f"无法读取 S02 TIP 盒位: {exc}",
+                node=node,
+                node_id=node_id,
+            )
+            return True
+        racks: dict[str, Any] = {}
+        read_racks = getattr(station, "tip_rack_positions", None)
+        if callable(read_racks):
+            try:
+                racks = read_racks() or {}
+            except Exception as exc:
+                _append_diagnostic(
+                    stats,
+                    instance=instance,
+                    code="s09_tip_wait",
+                    message=f"无法读取 S09 料架位: {exc}",
+                    node=node,
+                    node_id=node_id,
+                )
+                return True
+        waste_position = int(racks.get("waste", 2))
+        if place_position is None or pick_position is None:
+            _append_diagnostic(
+                stats,
+                instance=instance,
+                code="s02_slot_wait",
+                message="S02 没有可用的废盒空位或新盒位",
+                node=node,
+                node_id=node_id,
+                detail={
+                    "slots": {str(position): bool(value) for position, value in slots.items()},
+                    "place_position": place_position,
+                    "pick_position": pick_position,
+                },
+            )
+            return True
+        try:
+            future = self._executor.submit(
+                execute_tip_box_change,
+                station,
+                robot,
+                place_position=int(place_position),
+                pick_position=int(pick_position),
+                s09_tip_position=waste_position,
+            )
+        except Exception as exc:
+            _append_diagnostic(
+                stats,
+                instance=instance,
+                code="tip_box_change_failed",
+                message=str(exc),
+                node=node,
+                node_id=node_id,
+                immediate=True,
+                severity="error",
+                category="dispatch_error",
+            )
+            self._tip_change_blocked.add(instance_id)
+            return True
+        self._tip_changes[instance_id] = _TipBoxChange(
+            future=future,
+            instance_id=instance_id,
+            station=station,
+            node_id=node_id,
+            sample_id=str(instance.get("sample_id") or ""),
+            template_id=str(instance.get("template_id") or ""),
+            lock_keys=frozenset(lock_keys),
+            workflow_path=workflow_path,
+        )
+        busy_concurrency_keys.update(lock_keys)
+        _append_diagnostic(
+            stats,
+            instance=instance,
+            code="tip_box_change_started",
+            message="S09 没有可分配 TIP，加液已阻塞，并插入更高优先级的换料架流程",
+            node=node,
+            node_id=node_id,
+            detail={
+                "place_position": int(place_position),
+                "pick_position": int(pick_position),
+                "s09_tip_position": waste_position,
+                "priority": "urgent",
+            },
+        )
+        return True
+
+    def _harvest_tip_changes(self, stats: dict[str, Any]) -> None:
+        finished = [
+            (instance_id, job)
+            for instance_id, job in self._tip_changes.items()
+            if job.future.done()
+        ]
+        for instance_id, job in finished:
+            self._tip_changes.pop(instance_id, None)
+            try:
+                result = job.future.result()
+            except Exception as exc:
+                result = {"success": False, "message": str(exc)}
+            instance = {
+                "id": instance_id,
+                "sample_id": job.sample_id,
+                "template_id": job.template_id,
+            }
+            if not result.get("success"):
+                self._tip_change_blocked.add(instance_id)
+                _append_diagnostic(
+                    stats,
+                    instance=instance,
+                    code="tip_box_change_failed",
+                    message=str(result.get("message") or "S09 换 TIP 盒失败"),
+                    node_id=job.node_id,
+                    immediate=True,
+                    severity="error",
+                    category="dispatch_error",
+                    detail={
+                        "place_position": result.get("place_position"),
+                        "pick_position": result.get("pick_position"),
+                    },
+                )
+                continue
+            full_box_position = result.get("full_box_position")
+            finish = getattr(job.station, "finish_tip_box_change", None)
+            if full_box_position is None or not callable(finish):
+                self._tip_change_blocked.add(instance_id)
+                _append_diagnostic(
+                    stats,
+                    instance=instance,
+                    code="tip_box_change_failed",
+                    message="上料流程没有给出满料架位，无法确定废料架",
+                    node_id=job.node_id,
+                    immediate=True,
+                    severity="error",
+                    category="dispatch_error",
+                    detail={
+                        "place_position": result.get("place_position"),
+                        "pick_position": result.get("pick_position"),
+                        "full_box_position": full_box_position,
+                    },
+                )
+                continue
+            reset = finish(full_box_position=int(full_box_position))
+            if not reset.get("success"):
+                self._tip_change_blocked.add(instance_id)
+                _append_diagnostic(
+                    stats,
+                    instance=instance,
+                    code="tip_box_change_failed",
+                    message=str(reset.get("message") or "换盒后复位 TIP 库存失败"),
+                    node_id=job.node_id,
+                    immediate=True,
+                    severity="error",
+                    category="dispatch_error",
+                )
+                continue
+            roles = reset.get("data") if isinstance(reset.get("data"), dict) else {}
+            if "tip_source_box" not in roles or "tip_waste_box" not in roles:
+                self._tip_change_blocked.add(instance_id)
+                _append_diagnostic(
+                    stats,
+                    instance=instance,
+                    code="tip_box_change_failed",
+                    message="换盒结果缺少满料架或废料架位号",
+                    node_id=job.node_id,
+                    immediate=True,
+                    severity="error",
+                    category="dispatch_error",
+                )
+                continue
+            source_box = int(roles["tip_source_box"])
+            waste_box = int(roles["tip_waste_box"])
+            parameter_patch = {
+                "take_tip_box_index": source_box,
+                "release_tip_box_index": waste_box,
+            }
+            self._tip_param_overrides[instance_id] = parameter_patch
+            self._persist_blocked_tip_parameters(
+                stats,
+                instance=instance,
+                job=job,
+                parameters=parameter_patch,
+            )
+            _append_diagnostic(
+                stats,
+                instance=instance,
+                code="tip_box_change_finished",
+                message=(
+                    "上料流程把满料架放到 "
+                    f"{source_box} 号，废料架为 {waste_box} 号，"
+                    "阻塞中的加液已改用这两个位"
+                ),
+                node_id=job.node_id,
+                severity="info",
+                detail={
+                    "place_position": result.get("place_position"),
+                    "pick_position": result.get("pick_position"),
+                    "full_box_position": int(full_box_position),
+                    "take_tip_box_index": source_box,
+                    "release_tip_box_index": waste_box,
+                },
+            )
+
+    def _persist_blocked_tip_parameters(
+        self,
+        stats: dict[str, Any],
+        *,
+        instance: dict[str, Any],
+        job: _TipBoxChange,
+        parameters: dict[str, int],
+    ) -> None:
+        """把换架后的取/放 TIP 位写回仍被阻塞的加液参数。"""
+        updater = getattr(self._task_client, "update_blocked_action_parameters", None)
+        if not callable(updater) or not job.workflow_path:
+            return
+        try:
+            response = self._task_client.get_workspace(workflow_path=job.workflow_path)
+            updater(
+                workflow_path=job.workflow_path,
+                expected_version=int(response["version"]),
+                instance_id=job.instance_id,
+                node_id=job.node_id,
+                parameters=dict(parameters),
+            )
+        except Exception as exc:
+            _append_diagnostic(
+                stats,
+                instance=instance,
+                code="tip_parameter_update_failed",
+                message=f"换架后的加液参数未能写入调度：{exc}",
+                node_id=job.node_id,
+                severity="warning",
+                detail=dict(parameters),
+            )
+
     def _instance_is_in_flight(self, instance_id: str) -> bool:
         return any(
             action.instance_id == instance_id
@@ -1908,11 +2267,14 @@ class TaskExecutionCoordinator:
         )
 
     def _busy_concurrency_keys(self) -> set[str]:
-        return {
+        keys = {
             action.concurrency_key
             for action in self._in_flight.values()
             if action.concurrency_key
         }
+        for job in self._tip_changes.values():
+            keys.update(job.lock_keys)
+        return keys
 
 
 def _action_concurrency_key(node: WorkflowNode) -> str:

@@ -784,16 +784,18 @@ class SzlabMixerRobotDevice(
             return {"success": False, "message": str(exc), "task": "pick", "station": "S01", "position": position}
 
     @action(auto_prefix=True, description="S02 放 TIP")
-    def submit_place_to_s02(self, position: int = 1) -> dict[str, Any]:
+    def submit_place_to_s02(self, position: int | str = 1) -> dict[str, Any]:
         try:
-            return self._run_s02_place(position)
+            resolved = self._resolve_s02_position(position, mode="place")
+            return self._run_s02_place(resolved)
         except Exception as exc:
             return {"success": False, "message": str(exc), "task": "place", "station": "S02", "position": position}
 
     @action(auto_prefix=True, description="S02 取 TIP")
-    def submit_pick_from_s02(self, position: int = 1) -> dict[str, Any]:
+    def submit_pick_from_s02(self, position: int | str = 1) -> dict[str, Any]:
         try:
-            return self._run_s02_pick(position)
+            resolved = self._resolve_s02_position(position, mode="pick")
+            return self._run_s02_pick(resolved)
         except Exception as exc:
             return {"success": False, "message": str(exc), "task": "pick", "station": "S02", "position": position}
 

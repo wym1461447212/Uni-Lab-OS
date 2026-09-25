@@ -1196,6 +1196,9 @@ class WorkflowRunManager:
             node_runner=self._run_task_action_node,
             device_provider=self._task_execution_devices,
         )
+        self._opc_poll_stop = threading.Event()
+        self._opc_poll_thread: threading.Thread | None = None
+        self._opc_poll_workflow_path = ""
 
     def _append_task_action_log(
         self,
@@ -2054,6 +2057,7 @@ class WorkflowRunManager:
             workflow_path=workflow_path,
             operation="connect",
         )
+        self._ensure_opc_snapshot_poll(workflow_path)
         return devices
 
     def _get_or_create_devices(
@@ -2317,6 +2321,29 @@ class WorkflowRunManager:
                 detail={"failures": failures},
             )
         return finish(result)
+
+    def _ensure_opc_snapshot_poll(self, workflow_path: str) -> None:
+        """调度器只读 OPC 快照；连接后持续刷新，避免输入条件被判过期。"""
+        self._opc_poll_workflow_path = workflow_path
+        if self._opc_poll_thread is not None and self._opc_poll_thread.is_alive():
+            return
+
+        def _loop() -> None:
+            while not self._opc_poll_stop.wait(2.0):
+                path = self._opc_poll_workflow_path
+                if not path:
+                    continue
+                try:
+                    self.poll_task_opc(workflow_path=path)
+                except Exception:
+                    _LOGGER.exception("OPC 快照保活轮询失败")
+
+        self._opc_poll_thread = threading.Thread(
+            target=_loop,
+            name="szlab-opc-snapshot-poll",
+            daemon=True,
+        )
+        self._opc_poll_thread.start()
 
     def poll_task_opc(self, *, workflow_path: str) -> dict[str, Any]:
         """按当前非终态 Task 的条件读取 PLC，并分发最小快照。"""
@@ -3024,6 +3051,26 @@ class TaskOrchestrationSnapshotPublisher:
             raise RuntimeError("Task 排程服务未返回有效工作区")
         return workspace
 
+    def update_blocked_action_parameters(
+        self,
+        *,
+        workflow_path: str,
+        expected_version: int,
+        instance_id: str,
+        node_id: str,
+        parameters: dict[str, Any],
+    ) -> dict[str, Any]:
+        """换料架后改写仍被阻塞的加液参数，例如取 TIP 位从 1 改为 2。"""
+        return self._sender(
+            f"{self._base_url}/instances/{instance_id}:patch-blocked-parameters",
+            {
+                "workflow_path": workflow_path,
+                "expected_version": expected_version,
+                "node_id": node_id,
+                "parameters": parameters,
+            },
+        )
+
     def claim_action(self, **payload: Any) -> dict[str, Any]:
         """原子认领当前游标节点。"""
         return self._action_request("claim", payload)
@@ -3067,6 +3114,31 @@ class TaskOrchestrationSnapshotPublisher:
             raise RuntimeError("Task 排程服务未返回动作更新后的工作区版本")
         return response
 
+    def _remote_snapshot_sequence(
+        self, workflow_path: str, plc_device_id: str
+    ) -> int:
+        """读取任务服务里已经接受的快照序号，避免界面重启后从 0 重新计数。"""
+        request = Request(
+            f"{self._base_url}/workspaces?workflow_path={quote(workflow_path)}",
+            method="GET",
+        )
+        try:
+            with urlopen(request, timeout=3) as response:
+                payload = json.load(response)
+        except Exception:
+            return self._sequence
+        workspace = payload.get("workspace") if isinstance(payload, dict) else None
+        if not isinstance(workspace, dict):
+            return self._sequence
+        sequence = self._sequence
+        for snapshot in workspace.get("opc_snapshots") or []:
+            if not isinstance(snapshot, dict):
+                continue
+            if str(snapshot.get("plc_device_id") or "") != plc_device_id:
+                continue
+            sequence = max(sequence, int(snapshot.get("sequence") or 0))
+        return sequence
+
     def publish_snapshot(
         self,
         *,
@@ -3078,21 +3150,37 @@ class TaskOrchestrationSnapshotPublisher:
         current_version = expected_version
         items = list(values.items())
         for start in range(0, len(items), 64):
-            self._sequence += 1
-            response = self._sender(
-                f"{self._base_url}/opc/snapshots",
-                {
-                    "workflow_path": workflow_path,
-                    "expected_version": current_version,
-                    "plc_device_id": plc_device_id,
-                    "sequence": self._sequence,
-                    "values": dict(items[start: start + 64]),
-                },
-            )
-            if isinstance(response, dict) and isinstance(response.get("version"), int):
-                current_version = response["version"]
-            else:
-                current_version += 1
+            chunk = dict(items[start: start + 64])
+            for attempt in range(2):
+                self._sequence += 1
+                response = self._sender(
+                    f"{self._base_url}/opc/snapshots",
+                    {
+                        "workflow_path": workflow_path,
+                        "expected_version": current_version,
+                        "plc_device_id": plc_device_id,
+                        "sequence": self._sequence,
+                        "values": chunk,
+                    },
+                )
+                if isinstance(response, dict) and isinstance(
+                    response.get("version"), int
+                ):
+                    current_version = response["version"]
+                else:
+                    current_version += 1
+                if (
+                    attempt == 0
+                    and isinstance(response, dict)
+                    and response.get("accepted") is False
+                ):
+                    remote_sequence = self._remote_snapshot_sequence(
+                        workflow_path, plc_device_id
+                    )
+                    if remote_sequence > self._sequence:
+                        self._sequence = remote_sequence
+                    continue
+                break
 
     @staticmethod
     def _send(url: str, payload: dict[str, Any]) -> dict[str, Any]:

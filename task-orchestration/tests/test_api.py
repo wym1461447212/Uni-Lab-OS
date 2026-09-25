@@ -646,6 +646,66 @@ def test_instance_parameter_overrides_are_saved_only_on_the_target_instance(tmp_
     assert instances[1]["payload"] == {}
 
 
+def test_blocked_running_action_can_switch_tip_rack_position(tmp_path):
+    client = _client_with_workflow(tmp_path)
+    workspace = {
+        "workflow_path": "demo.json",
+        "templates": [{
+            **_template("liquid"),
+            "node_ids": ["w03_add_liquid_s09"],
+        }],
+        "task_instances": [{
+            "id": "sample-a-liquid",
+            "template_id": "liquid",
+            "sample_id": "Sample A",
+            "status": "running",
+            "started_at": 1,
+            "payload": {
+                "node_parameters": {
+                    "w03_add_liquid_s09": {
+                        "reuse_tip": False,
+                        "take_tip_box_index": 1,
+                        "release_tip_box_index": 2,
+                    }
+                }
+            },
+            "execution_state": {
+                "cursor": 0,
+                "records": [],
+                "active_execution_id": None,
+                "active_node_id": None,
+            },
+        }],
+    }
+    assert client.put(
+        "/workspaces",
+        json={"expected_version": 0, "workspace": workspace},
+    ).status_code == 200
+
+    response = client.post(
+        "/instances/sample-a-liquid:patch-blocked-parameters",
+        json={
+            "workflow_path": "demo.json",
+            "expected_version": 1,
+            "node_id": "w03_add_liquid_s09",
+            "parameters": {
+                "take_tip_box_index": 2,
+                "release_tip_box_index": 1,
+            },
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    params = response.json()["workspace"]["task_instances"][0]["payload"]["node_parameters"][
+        "w03_add_liquid_s09"
+    ]
+    assert params == {
+        "reuse_tip": False,
+        "take_tip_box_index": 2,
+        "release_tip_box_index": 1,
+    }
+
+
 def test_generate_instances_applies_remembered_parameters_to_each_new_instance(tmp_path):
     client = _client_with_workflow(tmp_path)
     workspace = {

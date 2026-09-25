@@ -805,6 +805,7 @@ class FakeTaskClient:
         self.claims = []
         self.succeeded = []
         self.failed = []
+        self.parameter_updates = []
         self.claim_error = None
 
     def get_workspace(self, *, workflow_path):
@@ -825,6 +826,20 @@ class FakeTaskClient:
 
     def fail_action(self, **payload):
         self.failed.append(payload)
+        self.response["version"] += 1
+        return deepcopy(self.response)
+
+    def update_blocked_action_parameters(self, **payload):
+        self.parameter_updates.append(payload)
+        for instance in self.response["workspace"]["task_instances"]:
+            if instance["id"] != payload["instance_id"]:
+                continue
+            body = instance.setdefault("payload", {})
+            node_parameters = dict(body.get("node_parameters") or {})
+            current = dict(node_parameters.get(payload["node_id"]) or {})
+            current.update(payload["parameters"])
+            node_parameters[payload["node_id"]] = current
+            body["node_parameters"] = node_parameters
         self.response["version"] += 1
         return deepcopy(self.response)
 
@@ -3045,6 +3060,226 @@ def test_missing_device_is_claimed_then_failed_as_unsupported_action(devices):
 def test_workflow_payload_parser_rejects_wrong_field_types(payload):
     with pytest.raises(ValueError):
         workflow_nodes_from_payload(payload)
+
+
+def _liquid_workspace():
+    response = _workspace_response(node_ids=["w03_place_beaker_s09", "w03_add_liquid_s09"])
+    state = response["workspace"]["task_instances"][0]["execution_state"]
+    state["cursor"] = 1
+    state["records"] = [
+        {
+            "node_id": "w03_place_beaker_s09",
+            "status": "succeeded",
+            "finished_at": 1,
+        }
+    ]
+    return response
+
+
+class _TipStation:
+    def __init__(self, *, safe_success: bool = True, source: int = 1, waste: int = 2):
+        self.ready = False
+        self.resets = []
+        self.safe_success = safe_success
+        self.source = source
+        self.waste = waste
+
+    def can_allocate_reusable_tip(self, **_kwargs):
+        return {
+            "success": True,
+            "can_allocate": self.ready,
+            "needs_box_change": not self.ready,
+            "message": "可以加液" if self.ready else "盒1没有可分配的新 TIP",
+        }
+
+    def tip_rack_positions(self):
+        return {"source": self.source, "waste": self.waste}
+
+    def initialize_reusable_tip_inventory(self, reset: bool = False, used_tip_count: int = 0):
+        self.resets.append((reset, used_tip_count))
+        self.ready = bool(reset)
+        return {"success": True}
+
+    def finish_tip_box_change(self, *, full_box_position: int):
+        source_box = int(full_box_position)
+        waste_box = 2 if source_box == 1 else 1
+        self.resets.append(("finish", source_box, waste_box))
+        self.ready = True
+        return {
+            "success": True,
+            "data": {"tip_source_box": source_box, "tip_waste_box": waste_box},
+        }
+
+    def go_to_safe_position(self, home_position: int = 1, require_allow: bool = True):
+        return {
+            "success": self.safe_success,
+            "message": "S09 安全位已确认" if self.safe_success else "S09 安全位等待失败",
+            "home_position": home_position,
+            "require_allow": require_allow,
+        }
+
+    def add_liquid_with_reusable_tip(self, **_kwargs):
+        return {"success": True}
+
+
+class _TipRobot:
+    def __init__(self, calls: list):
+        self.calls = calls
+
+    def scan_s02_tip_slots(self):
+        return {1: True, 2: False, 3: True, 4: False, 5: True, 6: False}
+
+    def choose_s02_place_position(self, slots):
+        assert slots[1] is True and slots[2] is False
+        return 2
+
+    def choose_s02_pick_position(self, slots):
+        assert slots[5] is True and slots[4] is False
+        return 5
+
+    def submit_pick_from_s09(self, product_type: int = 1, position: int = 1):
+        self.calls.append(("submit_pick_from_s09", product_type, position))
+        return {"success": True}
+
+    def submit_place_to_s02(self, position: int | str = 1):
+        self.calls.append(("submit_place_to_s02", position))
+        return {"success": True}
+
+    def submit_pick_from_s02(self, position: int | str = 1):
+        self.calls.append(("submit_pick_from_s02", position))
+        return {"success": True}
+
+    def submit_place_to_s09(self, product_type: int = 1, position: int = 1):
+        self.calls.append(("submit_place_to_s09", product_type, position))
+        return {"success": True}
+
+
+def _wait_tip_change(coordinator: TaskExecutionCoordinator) -> None:
+    deadline = time.monotonic() + 2
+    while time.monotonic() < deadline:
+        jobs = list(coordinator._tip_changes.values())
+        if jobs and all(job.future.done() for job in jobs):
+            return
+        if not jobs and coordinator._tip_change_blocked:
+            return
+        time.sleep(0.01)
+    raise AssertionError("换盒动作没有结束")
+
+
+def test_empty_tip_box_changes_box_before_add_liquid_is_claimed():
+    client = FakeTaskClient(_liquid_workspace())
+    calls = []
+    station = _TipStation()
+    robot = _TipRobot(calls)
+    ran = []
+
+    def runner(node, _devices, _action):
+        ran.append(dict(node.param))
+        return {"success": True}
+
+    coordinator = _coordinator(
+        client,
+        runner,
+        {
+            "szlab_mixer_pipetting_station": station,
+            "szlab_mixer_robot": robot,
+        },
+    )
+    liquid = next(item for item in ATOMIC_START_NODES if item.uuid == "w03_add_liquid_s09")
+
+    first = coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[liquid])
+    _wait_tip_change(coordinator)
+    second = coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[liquid])
+
+    assert first["claimed"] == 0
+    assert client.failed == []
+    assert [item["code"] for item in first["diagnostics"]] == ["tip_box_change_started"]
+    assert calls == [
+        ("submit_pick_from_s09", 1, 2),
+        ("submit_place_to_s02", 2),
+        ("submit_pick_from_s02", 5),
+        ("submit_place_to_s09", 1, 2),
+    ]
+    assert station.resets == [("finish", 2, 1)]
+    assert client.parameter_updates[0]["parameters"] == {
+        "take_tip_box_index": 2,
+        "release_tip_box_index": 1,
+    }
+    assert second["claimed"] == 1
+    assert [item["code"] for item in second["diagnostics"]] == ["tip_box_change_finished"]
+    deadline = time.monotonic() + 2
+    while not ran and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert ran == [{
+        "liquid_station_index": 1,
+        "solvent_batch_id": "solvent-batch-001",
+        "volume": 5000,
+        "volume_unit": "raw",
+        "S09液体瓶1剩余液量": 10.0,
+        "take_tip_box_index": 2,
+        "release_tip_box_index": 1,
+    }]
+    assert client.failed == []
+    coordinator.shutdown()
+
+
+def test_full_rack_follows_the_loading_place_position_not_a_fixed_swap():
+    client = FakeTaskClient(_liquid_workspace())
+    calls = []
+    station = _TipStation(source=2, waste=1)
+    robot = _TipRobot(calls)
+    coordinator = _coordinator(
+        client,
+        lambda *_args: {"success": True},
+        {
+            "szlab_mixer_pipetting_station": station,
+            "szlab_mixer_robot": robot,
+        },
+    )
+    liquid = next(item for item in ATOMIC_START_NODES if item.uuid == "w03_add_liquid_s09")
+
+    coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[liquid])
+    _wait_tip_change(coordinator)
+    finished = coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[liquid])
+
+    assert calls[-1] == ("submit_place_to_s09", 1, 1)
+    assert station.resets == [("finish", 1, 2)]
+    assert client.parameter_updates[0]["parameters"] == {
+        "take_tip_box_index": 1,
+        "release_tip_box_index": 2,
+    }
+    assert finished["diagnostics"][0]["detail"]["full_box_position"] == 1
+    coordinator.shutdown()
+
+
+def test_failed_tip_box_change_does_not_fail_or_retry_the_liquid_action():
+    client = FakeTaskClient(_liquid_workspace())
+    station = _TipStation(safe_success=False)
+    calls = []
+    robot = _TipRobot(calls)
+    coordinator = _coordinator(
+        client,
+        lambda *_args: {"success": True},
+        {
+            "szlab_mixer_pipetting_station": station,
+            "szlab_mixer_robot": robot,
+        },
+    )
+    liquid = next(item for item in ATOMIC_START_NODES if item.uuid == "w03_add_liquid_s09")
+
+    coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[liquid])
+    _wait_tip_change(coordinator)
+    failed = coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[liquid])
+    retried = coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[liquid])
+
+    assert client.claims == []
+    assert client.failed == []
+    assert calls == []
+    assert failed["claimed"] == 0
+    assert retried["claimed"] == 0
+    assert {item["code"] for item in failed["diagnostics"]} == {"tip_box_change_failed"}
+    assert [item["code"] for item in retried["diagnostics"]] == ["tip_box_change_failed"]
+    coordinator.shutdown()
 
 
 def test_coordinator_does_not_duplicate_low_level_robot_handshake_policy():

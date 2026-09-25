@@ -693,6 +693,73 @@ class WorkspaceService:
             workflow_path, expected_version=expected_version, operation=operation
         )
 
+    def update_blocked_action_parameters(
+        self,
+        workflow_path: str,
+        expected_version: int,
+        instance_id: str,
+        node_id: str,
+        parameters: dict[str, Any],
+    ):
+        """合并写入正在运行、但当前节点尚未认领的动作参数。"""
+        def operation(workspace: Workspace) -> Workspace:
+            instance = self._instance(workspace, instance_id)
+            if instance.status != "running":
+                raise WorkspaceServiceError(
+                    "instance_not_running",
+                    "blocked action parameters require a running instance",
+                )
+            state = instance.execution_state
+            if state.active_execution_id is not None:
+                raise WorkspaceServiceError(
+                    "action_already_active",
+                    "active action parameters are locked",
+                )
+            template = self._template(workspace, instance.template_id)
+            if (
+                state.cursor >= len(template.node_ids)
+                or template.node_ids[state.cursor] != node_id
+            ):
+                raise WorkspaceServiceError(
+                    "action_node_mismatch",
+                    "parameters can only change the blocked cursor action",
+                )
+            if node_id not in template.node_ids:
+                raise WorkspaceServiceError(
+                    "unknown_action_node",
+                    f"action node is not in template: {node_id}",
+                )
+            existing = dict(instance.payload.get("node_parameters") or {})
+            current = dict(existing.get(node_id) or {})
+            current.update(parameters)
+            existing[node_id] = current
+            updated_instance = instance.validated_copy(
+                update={"payload": {**instance.payload, "node_parameters": existing}}
+            )
+            event = WorkspaceEvent(
+                kind="instance_parameters_updated",
+                timestamp=self._clock(),
+                instance_id=instance.id,
+                template_id=template.id,
+                idempotency_key=(
+                    f"{workspace.workflow_path}/instances/{instance.id}/blocked-parameters/"
+                    f"{node_id}/{expected_version}"
+                ),
+                payload={"node_id": node_id, "parameters": dict(parameters)},
+            )
+            return workspace.validated_copy(
+                update={
+                    "task_instances": self._replace_instance(
+                        workspace, updated_instance
+                    ),
+                    "events": [*workspace.events, event],
+                }
+            )
+
+        return self._mutate(
+            workflow_path, expected_version=expected_version, operation=operation
+        )
+
     def push_opc_snapshot(
         self,
         workflow_path: str,
