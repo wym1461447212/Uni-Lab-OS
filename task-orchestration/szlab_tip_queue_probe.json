@@ -1,0 +1,41 @@
+{
+  "name": "szlab_tip_queue_probe",
+  "rules": [
+    {
+      "name": "tip_queue_probe",
+      "trigger": {"node": "S09 放烧杯", "value": true, "edge": "rising"},
+      "actions": [
+        {
+          "action": {
+            "workflow_node_id": "w03_place_beaker_s09",
+            "device_id": "szlab_mixer_robot",
+            "method": "submit_place_to_s09",
+            "node": "S09 放烧杯",
+            "params": {"product_type": 3, "position": 1}
+          }
+        },
+        {
+          "action": {
+            "workflow_node_id": "w03_add_liquid_s09",
+            "device_id": "szlab_mixer_pipetting_station",
+            "method": "add_liquid_with_reusable_tip",
+            "node": "S09 烧杯加液",
+            "params": {
+              "liquid_count": 1,
+              "liquid_additions": [
+                {
+                  "liquid_station_index": 1,
+                  "solvent_batch_id": "solvent-batch-001",
+                  "volume": 100,
+                  "reuse_tip": false
+                }
+              ],
+              "volume_unit": "raw",
+              "skip_level_check": false
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
