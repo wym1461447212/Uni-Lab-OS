@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import json
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
+from scripts.run_workflow_local import WorkflowNode
 from unilabos.app.scheduler.service import build_tip_box_change_workflow
 
 
@@ -20,6 +24,24 @@ TIP_RACK_PARAMETER_METHODS = frozenset({
 })
 STATION_DEVICE_ID = "szlab_mixer_pipetting_station"
 ROBOT_DEVICE_ID = "szlab_mixer_robot"
+TIP_BOX_CHANGE_TEMPLATE_ID = "tip_box_change"
+TIP_BOX_CHANGE_TEMPLATE_NAME = "S09 换 TIP 盒"
+TIP_BOX_CHANGE_WORKFLOW_FILE = (
+    Path(__file__).resolve().parents[1]
+    / "unilabos/devices/workstation/szlab_poly_studio/workflows/szlab_tip_box_change_workflow.json"
+)
+TIP_GO_TO_SAFE_NODE_ID = "tip_go_to_safe_position"
+TIP_PICK_FROM_S09_NODE_ID = "tip_pick_from_s09"
+TIP_PLACE_TO_S02_NODE_ID = "tip_place_to_s02"
+TIP_PICK_FROM_S02_NODE_ID = "tip_pick_from_s02"
+TIP_PLACE_TO_S09_NODE_ID = "tip_place_to_s09"
+TIP_BOX_CHANGE_NODE_IDS = (
+    TIP_GO_TO_SAFE_NODE_ID,
+    TIP_PICK_FROM_S09_NODE_ID,
+    TIP_PLACE_TO_S02_NODE_ID,
+    TIP_PICK_FROM_S02_NODE_ID,
+    TIP_PLACE_TO_S09_NODE_ID,
+)
 _TIP_QUERY_KEYS = (
     "liquid_station_index",
     "solvent_batch_id",
@@ -29,6 +51,60 @@ _TIP_QUERY_KEYS = (
     "liquid_count",
     "liquid_additions",
 )
+
+
+@lru_cache(maxsize=1)
+def tip_box_change_nodes() -> tuple[WorkflowNode, ...]:
+    """换架工作流的五步 action，顺序与普通任务的 node_ids 一致。"""
+    from scripts.task_execution_coordinator import workflow_nodes_from_payload
+
+    document = json.loads(TIP_BOX_CHANGE_WORKFLOW_FILE.read_text(encoding="utf-8"))
+    return tuple(workflow_nodes_from_payload(document))
+
+
+def merge_tip_box_change_nodes(nodes: list[WorkflowNode]) -> list[WorkflowNode]:
+    """把换架节点并进本轮派发节点表，样品工作流文件保持不变。"""
+    present = {node.uuid for node in nodes}
+    merged = list(nodes)
+    for node in tip_box_change_nodes():
+        if node.uuid not in present:
+            merged.append(node)
+    return merged
+
+
+def tip_box_change_template_payload() -> dict[str, Any]:
+    """换架模板不依赖样品顺序，触发时直接以 running 插入。"""
+    return {
+        "id": TIP_BOX_CHANGE_TEMPLATE_ID,
+        "name": TIP_BOX_CHANGE_TEMPLATE_NAME,
+        "node_ids": list(TIP_BOX_CHANGE_NODE_IDS),
+        "resources": [],
+        "input_triggers": [],
+        "output_triggers": [],
+        "dependencies": [],
+    }
+
+
+def tip_box_change_node_parameters(
+    *,
+    s02_place_position: int,
+    s02_pick_position: int,
+    s09_tip_position: int,
+) -> dict[str, dict[str, Any]]:
+    """触发时把扫描到的位号写进换架实例，不写死 1/2 对调。"""
+    return {
+        TIP_GO_TO_SAFE_NODE_ID: {"home_position": 1, "require_allow": True},
+        TIP_PICK_FROM_S09_NODE_ID: {
+            "product_type": 1,
+            "position": int(s09_tip_position),
+        },
+        TIP_PLACE_TO_S02_NODE_ID: {"position": int(s02_place_position)},
+        TIP_PICK_FROM_S02_NODE_ID: {"position": int(s02_pick_position)},
+        TIP_PLACE_TO_S09_NODE_ID: {
+            "product_type": 1,
+            "position": int(s09_tip_position),
+        },
+    }
 
 
 def reusable_tip_query_kwargs(node: Any) -> dict[str, Any]:

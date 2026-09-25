@@ -64,6 +64,7 @@ from unilabos.devices.workstation.szlab_poly_studio.error_codes import (
     read_active_plc_alarms,
 )
 from scripts.run_history_store import RunHistoryStore
+from scripts.s09_tip_box_change import merge_tip_box_change_nodes
 from scripts.task_execution_coordinator import (
     TaskApiConflict,
     TaskExecutionCoordinator,
@@ -1736,7 +1737,9 @@ class WorkflowRunManager:
         expected_version: int | None = None,
     ) -> tuple[dict[str, Any], list[WorkflowNode]]:
         """基于服务端最新工作区执行预检，并返回本次解析的节点快照。"""
-        workflow_nodes = workflow_nodes_from_payload(workflow_payload)
+        workflow_nodes = merge_tip_box_change_nodes(
+            workflow_nodes_from_payload(workflow_payload)
+        )
         workflow_fingerprint = _task_workflow_fingerprint(workflow_payload)
         response = self._task_snapshot_publisher.get_workspace(
             workflow_path=workflow_path
@@ -3080,6 +3083,48 @@ class TaskOrchestrationSnapshotPublisher:
                 "parameters": parameters,
             },
         )
+
+    def insert_tip_box_change_instance(
+        self,
+        *,
+        workflow_path: str,
+        sample_id: str,
+        order: int,
+        blocked_instance_id: str,
+        template: dict[str, Any],
+        node_parameters: dict[str, Any],
+    ) -> dict[str, Any]:
+        """把换架 action 链作为一条 urgent 任务插入当前队列。"""
+        current = self.get_workspace(workflow_path=workflow_path)
+        try:
+            return self._sender(
+                f"{self._base_url}/instances:insert-running",
+                {
+                    "workflow_path": workflow_path,
+                    "expected_version": int(current["version"]),
+                    "template": template,
+                    "sample_id": sample_id,
+                    "order": order,
+                    "priority": "urgent",
+                    "blocked_instance_id": blocked_instance_id,
+                    "node_parameters": node_parameters,
+                },
+            )
+        except HTTPError as exc:
+            if exc.code != 409:
+                raise
+            body = exc.read().decode("utf-8", errors="replace")
+            try:
+                detail = json.loads(body).get("detail")
+            except json.JSONDecodeError:
+                detail = body
+            if isinstance(detail, dict):
+                code = str(detail.get("code") or "version_conflict")
+                message = str(detail.get("message") or detail)
+            else:
+                code = "version_conflict"
+                message = str(detail)
+            raise TaskApiConflict(code, message) from exc
 
     def claim_action(self, **payload: Any) -> dict[str, Any]:
         """原子认领当前游标节点。"""

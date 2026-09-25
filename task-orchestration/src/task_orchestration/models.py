@@ -590,6 +590,19 @@ class TemplatesDeleteRequest(StrictModel):
     template_ids: list[str] = Field(min_length=1)
 
 
+class InsertRunningInstanceRequest(StrictModel):
+    """插入一条已经开始的任务，不重排现有样品队列。"""
+
+    workflow_path: str
+    expected_version: int = Field(ge=0)
+    template: Template
+    sample_id: str = Field(min_length=1)
+    order: int = Field(ge=0)
+    priority: Literal["urgent", "high", "normal", "low"] = "urgent"
+    blocked_instance_id: str = Field(min_length=1)
+    node_parameters: dict[str, dict[str, Any]] = Field(default_factory=dict)
+
+
 class GenerateInstancesRequest(StrictModel):
     workflow_path: str
     expected_version: int = Field(ge=0)

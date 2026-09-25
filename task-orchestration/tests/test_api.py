@@ -3759,3 +3759,84 @@ def test_gantt_ignores_legacy_resources_across_samples(tmp_path):
     assert entries["sample-b"].resources == []
     assert entries["sample-a"].start_at == entries["sample-b"].start_at == 1_000
     assert response.workspace.schedule_entries == schedule.entries
+
+
+def test_insert_running_instance_keeps_existing_queue_and_stays_idempotent(tmp_path):
+    client = _client_with_workflow(tmp_path)
+    workspace = {
+        "workflow_path": "demo.json",
+        "scheduled_template_ids": ["liquid"],
+        "templates": [{
+            **_template("liquid"),
+            "node_ids": ["w03_add_liquid_s09"],
+            "dependencies": None,
+        }],
+        "task_instances": [{
+            "id": "sample-a-liquid",
+            "template_id": "liquid",
+            "sample_id": "Sample A",
+            "order": 0,
+            "status": "running",
+            "started_at": 1,
+            "execution_state": {
+                "cursor": 0,
+                "records": [],
+                "active_execution_id": None,
+                "active_node_id": None,
+            },
+        }],
+    }
+    assert client.put(
+        "/workspaces",
+        json={"expected_version": 0, "workspace": workspace},
+    ).status_code == 200
+    tip_template = {
+        "id": "tip_box_change",
+        "name": "S09 换 TIP 盒",
+        "node_ids": ["tip_go_to_safe_position", "tip_place_to_s09"],
+        "resources": [],
+        "input_triggers": [],
+        "output_triggers": [],
+        "dependencies": [],
+    }
+    payload = {
+        "workflow_path": "demo.json",
+        "expected_version": 1,
+        "template": tip_template,
+        "sample_id": "Sample A",
+        "order": 0,
+        "priority": "urgent",
+        "blocked_instance_id": "sample-a-liquid",
+        "node_parameters": {
+            "tip_place_to_s09": {"product_type": 1, "position": 2},
+        },
+    }
+
+    response = client.post("/instances:insert-running", json=payload)
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    instances = body["workspace"]["task_instances"]
+    assert [item["id"] for item in instances][0] == "sample-a-liquid"
+    assert instances[0]["order"] == 0
+    tip = instances[1]
+    assert tip["status"] == "running"
+    assert tip["order"] == 1
+    assert tip["sample_id"] == "Sample A"
+    assert tip["payload"]["priority"] == "urgent"
+    assert tip["payload"]["blocked_instance_id"] == "sample-a-liquid"
+    assert tip["payload"]["node_parameters"]["tip_place_to_s09"]["position"] == 2
+    assert body["workspace"]["scheduled_template_ids"] == ["liquid"]
+    assert [item["id"] for item in body["workspace"]["templates"]] == [
+        "liquid",
+        "tip_box_change",
+    ]
+
+    again = client.post(
+        "/instances:insert-running",
+        json={**payload, "expected_version": body["version"]},
+    )
+
+    assert again.status_code == 200, again.text
+    assert again.json()["version"] == body["version"]
+    assert len(again.json()["workspace"]["task_instances"]) == 2

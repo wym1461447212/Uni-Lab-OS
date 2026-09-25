@@ -11,6 +11,7 @@ from ..models import (
     AdvanceRequest,
     ClearInstancesRequest,
     GenerateInstancesRequest,
+    InsertRunningInstanceRequest,
     BlockedActionParametersUpdateRequest,
     InstanceParametersUpdateRequest,
     MoveInstanceRequest,
@@ -167,6 +168,24 @@ def create_router(store: WorkspaceStore, service: WorkspaceService | None = None
                     request.workflow_path,
                     request.expected_version,
                     request.template_ids,
+                )
+            )
+        except (VersionConflictError, WorkspaceServiceError, SidecarCorruptionError, WorkflowPathError) as exc:
+            raise mutation_error(exc) from exc
+
+    @router.post("/instances:insert-running")
+    def insert_running_instance(request: InsertRunningInstanceRequest) -> dict:
+        try:
+            return public_workspace_response(
+                workspace_service.insert_running_instance(
+                    request.workflow_path,
+                    request.expected_version,
+                    template=request.template,
+                    sample_id=request.sample_id,
+                    order=request.order,
+                    priority=request.priority,
+                    blocked_instance_id=request.blocked_instance_id,
+                    node_parameters=request.node_parameters,
                 )
             )
         except (VersionConflictError, WorkspaceServiceError, SidecarCorruptionError, WorkflowPathError) as exc:

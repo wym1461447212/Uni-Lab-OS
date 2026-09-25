@@ -807,25 +807,191 @@ class FakeTaskClient:
         self.failed = []
         self.parameter_updates = []
         self.claim_error = None
+        self._tip_seq = 0
 
     def get_workspace(self, *, workflow_path):
         assert workflow_path == WORKFLOW_PATH
         return deepcopy(self.response)
 
+    def _workspace_instance(self, instance_id: str) -> dict | None:
+        for item in self.response["workspace"]["task_instances"]:
+            if item.get("id") == instance_id:
+                return item
+        return None
+
+    def _template_node_ids(self, template_id: str) -> list[str]:
+        for item in self.response["workspace"]["templates"]:
+            if item.get("id") == template_id:
+                return list(item.get("node_ids") or [])
+        return []
+
     def claim_action(self, **payload):
         if self.claim_error is not None:
             raise self.claim_error
         self.claims.append(payload)
+        instance = self._workspace_instance(str(payload.get("instance_id") or ""))
+        if instance is not None:
+            state = instance.setdefault("execution_state", {
+                "cursor": 0,
+                "records": [],
+                "active_execution_id": None,
+                "active_node_id": None,
+            })
+            execution_id = payload.get("execution_id")
+            records = list(state.get("records") or [])
+            if not any(item.get("execution_id") == execution_id for item in records):
+                records.append({
+                    "node_id": payload.get("node_id"),
+                    "execution_id": execution_id,
+                    "status": "running",
+                })
+            state["records"] = records
+            state["active_execution_id"] = execution_id
+            state["active_node_id"] = payload.get("node_id")
         self.response["version"] += 1
         return deepcopy(self.response)
 
     def succeed_action(self, **payload):
         self.succeeded.append(payload)
+        instance = self._workspace_instance(str(payload.get("instance_id") or ""))
+        if instance is not None:
+            state = instance.setdefault("execution_state", {
+                "cursor": 0,
+                "records": [],
+                "active_execution_id": None,
+                "active_node_id": None,
+            })
+            execution_id = payload.get("execution_id")
+            already_succeeded = any(
+                item.get("execution_id") == execution_id and item.get("status") == "succeeded"
+                for item in state.get("records") or []
+            )
+            if not already_succeeded:
+                records = []
+                updated = False
+                for item in state.get("records") or []:
+                    if item.get("execution_id") == execution_id:
+                        records.append({**item, "status": "succeeded"})
+                        updated = True
+                    else:
+                        records.append(item)
+                if not updated:
+                    records.append({
+                        "node_id": payload.get("node_id"),
+                        "execution_id": execution_id,
+                        "status": "succeeded",
+                    })
+                state["records"] = records
+                state["cursor"] = int(state.get("cursor") or 0) + 1
+                state["active_execution_id"] = None
+                state["active_node_id"] = None
+                node_ids = self._template_node_ids(str(instance.get("template_id") or ""))
+                if node_ids and state["cursor"] >= len(node_ids):
+                    instance["status"] = "completed"
         self.response["version"] += 1
         return deepcopy(self.response)
 
     def fail_action(self, **payload):
         self.failed.append(payload)
+        instance = self._workspace_instance(str(payload.get("instance_id") or ""))
+        if instance is not None and instance.get("status") != "failed":
+            state = instance.setdefault("execution_state", {
+                "cursor": 0,
+                "records": [],
+                "active_execution_id": None,
+                "active_node_id": None,
+            })
+            execution_id = payload.get("execution_id")
+            records = []
+            updated = False
+            for item in state.get("records") or []:
+                if item.get("execution_id") == execution_id:
+                    records.append({**item, "status": "failed"})
+                    updated = True
+                else:
+                    records.append(item)
+            if not updated:
+                records.append({
+                    "node_id": payload.get("node_id"),
+                    "execution_id": execution_id,
+                    "status": "failed",
+                })
+            state["records"] = records
+            state["active_execution_id"] = None
+            state["active_node_id"] = None
+            instance["status"] = "failed"
+            others_running = any(
+                item.get("status") == "running" and item.get("id") != instance.get("id")
+                for item in self.response["workspace"]["task_instances"]
+            )
+            if not others_running:
+                workspace = self.response["workspace"]
+                workspace["scheduler_paused"] = True
+                workspace["pause_reason"] = {
+                    "code": "action_failed",
+                    "message": "Action execution failed; workspace paused",
+                    "instance_id": instance.get("id"),
+                    "node_id": payload.get("node_id"),
+                }
+        self.response["version"] += 1
+        return deepcopy(self.response)
+
+    def insert_tip_box_change_instance(
+        self,
+        *,
+        workflow_path,
+        sample_id,
+        order,
+        blocked_instance_id,
+        template,
+        node_parameters,
+    ):
+        del order
+        assert workflow_path == WORKFLOW_PATH
+        workspace = self.response["workspace"]
+        template_id = str(template["id"])
+        for item in workspace["task_instances"]:
+            if item.get("template_id") != template_id:
+                continue
+            if item.get("status") not in {"waiting", "pending", "running"}:
+                continue
+            payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+            if payload.get("blocked_instance_id") == blocked_instance_id:
+                return deepcopy(self.response)
+        templates = workspace["templates"]
+        existing = next((item for item in templates if item.get("id") == template_id), None)
+        if existing is None:
+            templates.append({
+                "id": template_id,
+                "name": template.get("name") or template_id,
+                "node_ids": list(template["node_ids"]),
+            })
+        elif list(existing.get("node_ids") or []) != list(template["node_ids"]):
+            raise TaskApiConflict("template_node_mismatch", "换架模板节点不一致")
+        orders = [
+            int(item.get("order") or 0)
+            for item in workspace["task_instances"]
+            if item.get("sample_id") == sample_id
+        ]
+        self._tip_seq += 1
+        workspace["task_instances"].append({
+            "id": f"tip-instance-{self._tip_seq}",
+            "template_id": template_id,
+            "status": "running",
+            "sample_id": sample_id,
+            "order": (max(orders) if orders else -1) + 1,
+            "payload": {
+                "priority": "urgent",
+                "blocked_instance_id": blocked_instance_id,
+                "node_parameters": node_parameters,
+            },
+            "execution_state": {
+                "cursor": 0,
+                "records": [],
+                "active_execution_id": None,
+                "active_node_id": None,
+            },
+        })
         self.response["version"] += 1
         return deepcopy(self.response)
 
@@ -1775,23 +1941,12 @@ def test_restart_fails_orphaned_server_execution_without_repeating_action():
     assert result["claimed"] == 0
     assert client.claims == []
     assert calls == []
-    assert result["failed"] == 1
+    assert result["failed"] == 0
+    assert client.failed == []
     assert [item["code"] for item in result["diagnostics"]] == [
-        "orphaned_execution"
+        "orphaned_execution_wait"
     ]
     assert result["diagnostics"][0]["execution_id"] == execution_id
-    assert result["diagnostics"][0]["phase"] == "recovering"
-    assert client.failed == [{
-        "workflow_path": WORKFLOW_PATH,
-        "expected_version": 7,
-        "instance_id": "instance-1",
-        "node_id": "node_001_pick_from_s03",
-        "execution_id": execution_id,
-        "error": {
-            "code": "orphaned_execution",
-            "message": "服务端存在活动执行但本地无对应 future，无法安全恢复",
-        },
-    }]
 
 
 def test_harvest_only_recovers_orphaned_execution_after_backend_restart():
@@ -1821,10 +1976,11 @@ def test_harvest_only_recovers_orphaned_execution_after_backend_restart():
     )
 
     assert result["claimed"] == 0
-    assert result["failed"] == 1
+    assert result["failed"] == 0
     assert calls == []
-    assert result["diagnostics"][0]["code"] == "orphaned_execution"
-    assert client.failed[0]["execution_id"] == execution_id
+    assert client.failed == []
+    assert result["diagnostics"][0]["code"] == "orphaned_execution_wait"
+    assert result["diagnostics"][0]["execution_id"] == execution_id
 
 
 def test_orphaned_execution_conflict_waits_then_retries_next_tick():
@@ -1870,9 +2026,16 @@ def test_orphaned_execution_conflict_waits_then_retries_next_tick():
     )
 
     assert first["failed"] == 0
-    assert second["failed"] == 1
-    assert client.attempts == 2
+    assert second["failed"] == 0
+    assert client.attempts == 0
+    assert client.failed == []
     assert calls == []
+    assert [item["code"] for item in first["diagnostics"]] == [
+        "orphaned_execution_wait"
+    ]
+    assert [item["code"] for item in second["diagnostics"]] == [
+        "orphaned_execution_wait"
+    ]
 
 
 @pytest.mark.parametrize(
@@ -2105,16 +2268,18 @@ def test_orphan_terminal_report_conflict_is_retried_by_harvest_only():
     )
 
     assert first["success"] is True
-    assert first["active"] == 1
-    assert first["in_flight"] == 1
     assert first["failed"] == 0
+    assert first["in_flight"] == 0
+    assert recovered["failed"] == 0
     assert recovered["in_flight"] == 0
-    assert recovered["failed"] == 1
-    assert len(client.fail_attempts) == 2
-    assert all(
-        attempt["error"]["code"] == "orphaned_execution"
-        for attempt in client.fail_attempts
-    )
+    assert client.claims == []
+    assert client.fail_attempts == []
+    assert [item["code"] for item in first["diagnostics"]] == [
+        "orphaned_execution_wait"
+    ]
+    assert [item["code"] for item in recovered["diagnostics"]] == [
+        "orphaned_execution_wait"
+    ]
     assert action_calls == []
 
 
@@ -3167,16 +3332,37 @@ class _TipRobot:
         return {"success": True}
 
 
-def _wait_tip_change(coordinator: TaskExecutionCoordinator) -> None:
-    deadline = time.monotonic() + 2
+def _run_device_action(node, _devices, action):
+    return action(**node.param)
+
+
+def _record_method(method_name: str, ran: list):
+    def runner(node, devices, action):
+        result = _run_device_action(node, devices, action)
+        if node.method == method_name:
+            ran.append(dict(node.param))
+        return result
+
+    return runner
+
+
+def _pump_tip_change(
+    coordinator: TaskExecutionCoordinator,
+    nodes: list[WorkflowNode],
+    *,
+    timeout: float = 2,
+) -> dict:
+    """逐拍推进换架任务，直到它完成或失败后被收口。"""
+    deadline = time.monotonic() + timeout
+    last: dict = {}
     while time.monotonic() < deadline:
-        jobs = list(coordinator._tip_changes.values())
-        if jobs and all(job.future.done() for job in jobs):
-            return
-        if not jobs and coordinator._tip_change_blocked:
-            return
-        time.sleep(0.01)
-    raise AssertionError("换盒动作没有结束")
+        if coordinator._tip_waits:
+            for action in list(coordinator._in_flight.values()):
+                action.future.result(timeout=max(0.1, deadline - time.monotonic()))
+        last = coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=nodes)
+        if not coordinator._tip_waits:
+            return last
+    raise AssertionError(f"换架任务没有结束: {last.get('diagnostics')}")
 
 
 def test_empty_tip_box_changes_box_before_add_liquid_is_claimed():
@@ -3185,14 +3371,9 @@ def test_empty_tip_box_changes_box_before_add_liquid_is_claimed():
     station = _TipStation()
     robot = _TipRobot(calls)
     ran = []
-
-    def runner(node, _devices, _action):
-        ran.append(dict(node.param))
-        return {"success": True}
-
     coordinator = _coordinator(
         client,
-        runner,
+        _record_method("add_liquid_with_reusable_tip", ran),
         {
             "szlab_mixer_pipetting_station": station,
             "szlab_mixer_robot": robot,
@@ -3201,12 +3382,35 @@ def test_empty_tip_box_changes_box_before_add_liquid_is_claimed():
     liquid = next(item for item in ATOMIC_START_NODES if item.uuid == "w03_add_liquid_s09")
 
     first = coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[liquid])
-    _wait_tip_change(coordinator)
-    second = coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[liquid])
+    second = _pump_tip_change(coordinator, [liquid])
 
     assert first["claimed"] == 0
     assert client.failed == []
     assert [item["code"] for item in first["diagnostics"]] == ["tip_box_change_started"]
+    tips = [
+        item for item in client.response["workspace"]["task_instances"]
+        if item["template_id"] == "tip_box_change"
+    ]
+    assert len(tips) == 1
+    assert tips[0]["status"] == "completed"
+    assert tips[0]["payload"]["priority"] == "urgent"
+    assert tips[0]["sample_id"] == "换架"
+    assert [item["instance_id"] for item in client.claims] == [
+        tips[0]["id"],
+        tips[0]["id"],
+        tips[0]["id"],
+        tips[0]["id"],
+        tips[0]["id"],
+        "instance-1",
+    ]
+    assert [item["node_id"] for item in client.claims] == [
+        "tip_go_to_safe_position",
+        "tip_pick_from_s09",
+        "tip_place_to_s02",
+        "tip_pick_from_s02",
+        "tip_place_to_s09",
+        "w03_add_liquid_s09",
+    ]
     assert calls == [
         ("submit_pick_from_s09", 1, 2),
         ("submit_place_to_s02", 2),
@@ -3243,7 +3447,7 @@ def test_full_rack_follows_the_loading_place_position_not_a_fixed_swap():
     robot = _TipRobot(calls)
     coordinator = _coordinator(
         client,
-        lambda *_args: {"success": True},
+        _run_device_action,
         {
             "szlab_mixer_pipetting_station": station,
             "szlab_mixer_robot": robot,
@@ -3252,8 +3456,7 @@ def test_full_rack_follows_the_loading_place_position_not_a_fixed_swap():
     liquid = next(item for item in ATOMIC_START_NODES if item.uuid == "w03_add_liquid_s09")
 
     coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[liquid])
-    _wait_tip_change(coordinator)
-    finished = coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[liquid])
+    finished = _pump_tip_change(coordinator, [liquid])
 
     assert calls[-1] == ("submit_place_to_s09", 1, 1)
     assert station.resets == [("finish", 1, 2)]
@@ -3297,14 +3500,9 @@ def test_empty_tip_box_changes_box_before_measure_density_is_claimed():
     station = _TipStation()
     robot = _TipRobot(calls)
     ran = []
-
-    def runner(node, _devices, _action):
-        ran.append(dict(node.param))
-        return {"success": True}
-
     coordinator = _coordinator(
         client,
-        runner,
+        _record_method("measure_density", ran),
         {
             "szlab_mixer_pipetting_station": station,
             "szlab_mixer_robot": robot,
@@ -3312,8 +3510,7 @@ def test_empty_tip_box_changes_box_before_measure_density_is_claimed():
     )
 
     first = coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[DENSITY_NODE])
-    _wait_tip_change(coordinator)
-    second = coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[DENSITY_NODE])
+    second = _pump_tip_change(coordinator, [DENSITY_NODE])
 
     assert first["claimed"] == 0
     assert client.failed == []
@@ -3376,7 +3573,7 @@ def test_failed_tip_box_change_does_not_fail_or_retry_the_density_action():
     robot = _TipRobot(calls)
     coordinator = _coordinator(
         client,
-        lambda *_args: {"success": True},
+        _run_device_action,
         {
             "szlab_mixer_pipetting_station": station,
             "szlab_mixer_robot": robot,
@@ -3384,12 +3581,18 @@ def test_failed_tip_box_change_does_not_fail_or_retry_the_density_action():
     )
 
     coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[DENSITY_NODE])
-    _wait_tip_change(coordinator)
-    failed = coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[DENSITY_NODE])
+    failed = _pump_tip_change(coordinator, [DENSITY_NODE])
     retried = coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[DENSITY_NODE])
 
-    assert client.claims == []
-    assert client.failed == []
+    tips = [
+        item for item in client.response["workspace"]["task_instances"]
+        if item["template_id"] == "tip_box_change"
+    ]
+    assert len(tips) == 1
+    assert tips[0]["status"] == "failed"
+    assert [item["instance_id"] for item in client.claims] == [tips[0]["id"]]
+    assert [item["node_id"] for item in client.claims] == ["tip_go_to_safe_position"]
+    assert [item["instance_id"] for item in client.failed] == [tips[0]["id"]]
     assert client.parameter_updates == []
     assert calls == []
     assert failed["claimed"] == 0
@@ -3406,7 +3609,7 @@ def test_failed_tip_box_change_does_not_fail_or_retry_the_liquid_action():
     robot = _TipRobot(calls)
     coordinator = _coordinator(
         client,
-        lambda *_args: {"success": True},
+        _run_device_action,
         {
             "szlab_mixer_pipetting_station": station,
             "szlab_mixer_robot": robot,
@@ -3415,12 +3618,18 @@ def test_failed_tip_box_change_does_not_fail_or_retry_the_liquid_action():
     liquid = next(item for item in ATOMIC_START_NODES if item.uuid == "w03_add_liquid_s09")
 
     coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[liquid])
-    _wait_tip_change(coordinator)
-    failed = coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[liquid])
+    failed = _pump_tip_change(coordinator, [liquid])
     retried = coordinator.cycle(workflow_path=WORKFLOW_PATH, workflow_nodes=[liquid])
 
-    assert client.claims == []
-    assert client.failed == []
+    tips = [
+        item for item in client.response["workspace"]["task_instances"]
+        if item["template_id"] == "tip_box_change"
+    ]
+    assert len(tips) == 1
+    assert tips[0]["status"] == "failed"
+    assert [item["instance_id"] for item in client.claims] == [tips[0]["id"]]
+    assert [item["instance_id"] for item in client.failed] == [tips[0]["id"]]
+    assert "instance-1" not in {item["instance_id"] for item in client.failed}
     assert calls == []
     assert failed["claimed"] == 0
     assert retried["claimed"] == 0

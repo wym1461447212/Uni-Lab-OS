@@ -1,0 +1,66 @@
+{
+  "name": "szlab_tip_box_change_workflow",
+  "nodes": [
+    {
+      "workflow_node_id": "tip_go_to_safe_position",
+      "device_id": "szlab_mixer_pipetting_station",
+      "method": "go_to_safe_position",
+      "params": {
+        "home_position": 1,
+        "require_allow": true
+      }
+    },
+    {
+      "workflow_node_id": "tip_pick_from_s09",
+      "device_id": "szlab_mixer_robot",
+      "method": "submit_pick_from_s09",
+      "params": {
+        "product_type": 1,
+        "position": 1
+      }
+    },
+    {
+      "workflow_node_id": "tip_place_to_s02",
+      "device_id": "szlab_mixer_robot",
+      "method": "submit_place_to_s02",
+      "params": {
+        "position": 1
+      }
+    },
+    {
+      "workflow_node_id": "tip_pick_from_s02",
+      "device_id": "szlab_mixer_robot",
+      "method": "submit_pick_from_s02",
+      "params": {
+        "position": 1
+      }
+    },
+    {
+      "workflow_node_id": "tip_place_to_s09",
+      "device_id": "szlab_mixer_robot",
+      "method": "submit_place_to_s09",
+      "params": {
+        "product_type": 1,
+        "position": 1
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source_node_uuid": "tip_go_to_safe_position",
+      "target_node_uuid": "tip_pick_from_s09"
+    },
+    {
+      "source_node_uuid": "tip_pick_from_s09",
+      "target_node_uuid": "tip_place_to_s02"
+    },
+    {
+      "source_node_uuid": "tip_place_to_s02",
+      "target_node_uuid": "tip_pick_from_s02"
+    },
+    {
+      "source_node_uuid": "tip_pick_from_s02",
+      "target_node_uuid": "tip_place_to_s09"
+    }
+  ]
+}

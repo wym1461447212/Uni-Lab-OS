@@ -497,6 +497,127 @@ class WorkspaceService:
             workflow_path, expected_version=expected_version, operation=operation
         )
 
+    def insert_running_instance(
+        self,
+        workflow_path: str,
+        expected_version: int,
+        *,
+        template: Template,
+        sample_id: str,
+        order: int,
+        priority: str,
+        blocked_instance_id: str,
+        node_parameters: dict[str, dict[str, Any]],
+    ):
+        """插入一条已经处于 running 的任务。同一次阻塞只保留一条。"""
+        current = self.store.get(workflow_path)
+        if self._active_inserted_instance(
+            current.workspace,
+            template_id=template.id,
+            blocked_instance_id=blocked_instance_id,
+        ) is not None:
+            return current
+
+        del order
+
+        def operation(workspace: Workspace) -> Workspace:
+            existing = self._active_inserted_instance(
+                workspace,
+                template_id=template.id,
+                blocked_instance_id=blocked_instance_id,
+            )
+            if existing is not None:
+                return workspace
+            unknown_nodes = set(node_parameters) - set(template.node_ids)
+            if unknown_nodes:
+                raise WorkspaceServiceError(
+                    "unknown_action_node",
+                    f"action nodes are not in template {template.id}: {sorted(unknown_nodes)}",
+                )
+            assigned_order = max(
+                (
+                    item.order
+                    for item in workspace.task_instances
+                    if item.sample_id == sample_id
+                ),
+                default=-1,
+            ) + 1
+            templates = list(workspace.templates)
+            current_template = next(
+                (item for item in templates if item.id == template.id),
+                None,
+            )
+            if current_template is None:
+                created = self._canonicalize_template_triggers(workspace, template)
+                self._validate_template_conditions(workspace, created)
+                created = created.model_copy(
+                    update={
+                        "workflow_path": workspace.workflow_path,
+                        "resources": [],
+                    }
+                )
+                templates.append(created)
+            elif list(current_template.node_ids) != list(template.node_ids):
+                raise WorkspaceServiceError(
+                    "template_node_mismatch",
+                    f"template {template.id} node_ids differ from the inserted chain",
+                )
+            started_at = self._clock()
+            inserted = TaskInstance(
+                id=uuid4().hex,
+                template_id=template.id,
+                status="running",
+                sample_id=sample_id,
+                order=assigned_order,
+                started_at=started_at,
+                payload={
+                    "priority": priority,
+                    "blocked_instance_id": blocked_instance_id,
+                    "node_parameters": node_parameters,
+                },
+            )
+            event = WorkspaceEvent(
+                kind="scheduled",
+                instance_id=inserted.id,
+                template_id=template.id,
+                timestamp=started_at,
+                idempotency_key=f"instance/{inserted.id}/scheduled",
+                payload={"priority": priority, "blocked_instance_id": blocked_instance_id},
+            )
+            updated = workspace.model_copy(
+                update={
+                    "templates": templates,
+                    "task_instances": [*workspace.task_instances, inserted],
+                    "events": [*workspace.events, event],
+                }
+            )
+            return updated.model_copy(
+                update={"schedule_entries": self._build_schedule_entries(updated)}
+            )
+
+        return self._mutate(
+            workflow_path, expected_version=expected_version, operation=operation
+        )
+
+    @staticmethod
+    def _active_inserted_instance(
+        workspace: Workspace,
+        *,
+        template_id: str,
+        blocked_instance_id: str,
+    ) -> TaskInstance | None:
+        for item in workspace.task_instances:
+            if item.template_id != template_id or item.status not in {
+                "waiting",
+                "pending",
+                "running",
+            }:
+                continue
+            blocked = item.payload.get("blocked_instance_id")
+            if blocked == blocked_instance_id:
+                return item
+        return None
+
     def clear_instances(self, workflow_path: str, expected_version: int):
         """清空 Task 队列实例；保留模板、排程模板列表与 OPC/PLC 注册。"""
 
